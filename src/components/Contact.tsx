@@ -24,7 +24,7 @@ const Contact: React.FC = () => {
             </p>
             <div className="flex space-x-4">
               <a
-                href="http://www.instagram.com/diskpodsmaringa"
+                href="http://www.instagram.com/podmasterbr"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-300 hover:text-pink-400 transition-colors"
