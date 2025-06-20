@@ -9,6 +9,8 @@ interface Product {
   description: string;
   category: string;
   flavors: string[];
+  originalPrice?: string; // Added as optional
+  discount?: string;     // Added as optional
 }
 
 interface CartItem {
@@ -16,6 +18,7 @@ interface CartItem {
   flavor: string;
   quantity: number;
   price: string;
+  discount?: string;     // Added as optional
 }
 
 interface Address {
