@@ -4,43 +4,32 @@ import Hero from './components/Hero';
 import Categories from './components/Categories';
 import Products from './components/Products';
 import Contact from './components/Contact';
+import { cidades_por_estados, estados_input } from './cidades';
 
-// Define the states data
-const estados_input = {
-  RO: "Rondônia",
-  AC: "Acre",
-  AM: "Amazonas",
-  RR: "Roraima",
-  PA: "Pará",
-  AP: "Amapá",
-  TO: "Tocantins",
-  MA: "Maranhão",
-  PI: "Piauí",
-  CE: "Ceará",
-  RN: "Rio Grande do Norte",
-  PB: "Paraíba",
-  PE: "Pernambuco",
-  AL: "Alagoas",
-  SE: "Sergipe",
-  BA: "Bahia",
-  MG: "Minas Gerais",
-  ES: "Espírito Santo",
-  RJ: "Rio de Janeiro",
-  SP: "São Paulo",
-  PR: "Paraná",
-  SC: "Santa Catarina",
-  RS: "Rio Grande do Sul",
-  MS: "Mato Grosso do Sul",
-  MT: "Mato Grosso",
-  GO: "Goiás",
-  DF: "Distrito Federal",
-};
+// Define types
+type StateCode = keyof typeof estados_input;
+type StateName = typeof estados_input[StateCode];
+
+interface Product {
+  id: number;
+  name: string;
+  image: string;
+  price: string;
+  description: string;
+  category: string;
+  flavors: string[];
+  originalPrice?: string;
+  discount?: string;
+}
 
 function App() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [userState, setUserState] = useState<string | null>(null);
-  const [discountedProduct, setDiscountedProduct] = useState<any>(null);
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(true); // Modal starts open
+  const [userState, setUserState] = useState<StateName | null>(null);
+  const [userCity, setUserCity] = useState<string | null>(null);
+  const [discountedProduct, setDiscountedProduct] = useState<Product | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(true);
+  const [modalStep, setModalStep] = useState<'state' | 'city' | 'loading' | 'result'>('state');
+  const [storeDistance, setStoreDistance] = useState<number | null>(null);
 
   // Mock products (should match the ones in Products.tsx)
   const products = [
@@ -283,75 +272,124 @@ function App() {
     }
   ];
 
-  // Handle state selection from dropdown
+   // Handle state selection
   const handleStateSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedState = e.target.value;
+    const selectedState = e.target.value as StateName;
     setUserState(selectedState);
+  };
 
-    if (selectedState && selectedState !== 'Desconhecido') {
-      // Apply discount logic
-      const randomProduct = products[Math.floor(Math.random() * products.length)];
-      const originalPrice = parseFloat(randomProduct.price.replace('R$ ', '').replace(',', '.'));
-      const discount = originalPrice * 0.20;
-      const discountedPrice = (originalPrice - discount).toFixed(2).replace('.', ',');
-
-      setDiscountedProduct({
-        ...randomProduct,
-        price: `R$ ${discountedPrice}`,
-        originalPrice: randomProduct.price,
-        discount: '20% OFF',
-      });
-      setIsModalOpen(false); // Close modal on valid selection
-    } else {
-      setDiscountedProduct(null); // Clear discount if no valid state
+  // Handle state confirmation
+  const handleStateNext = () => {
+    if (userState && userState !== 'Desconhecido') {
+      setModalStep('city');
     }
   };
 
-  // Geolocation as fallback (runs only if modal is not used or user skips)
+  // Handle city selection
+  const handleCitySelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedCity = e.target.value;
+    setUserCity(selectedCity);
+  };
+
+  // Handle city confirmation
+  const handleCityConfirm = () => {
+    if (userCity && userCity !== 'Selecione uma cidade') {
+      setModalStep('loading');
+      // Simulate loading for 3 seconds
+      setTimeout(() => {
+        // Generate random distance between 6.5 and 8 km
+        const distance = (Math.random() * (8 - 6.5) + 6.5).toFixed(1);
+        setStoreDistance(parseFloat(distance));
+
+        // Apply discount
+        const randomProduct = products[Math.floor(Math.random() * products.length)];
+        const originalPrice = parseFloat(randomProduct.price.replace('R$ ', '').replace(',', '.'));
+        const discount = originalPrice * 0.20;
+        const discountedPrice = (originalPrice - discount).toFixed(2).replace('.', ',');
+
+        setDiscountedProduct({
+          ...randomProduct,
+          price: `R$ ${discountedPrice}`,
+          originalPrice: randomProduct.price,
+          discount: '20% OFF',
+        });
+
+        setModalStep('result');
+      }, 3000); // 3 seconds
+    }
+  };
+
+  // Get cities for the selected state
+  const getCitiesForState = (state: StateName | null): string[] => {
+    if (!state || state === 'Desconhecido') return [];
+    const stateCode = Object.keys(estados_input).find(
+      (code: string) => estados_input[code as StateCode] === state
+    ) as StateCode | undefined;
+    if (!stateCode) return [];
+    return cidades_por_estados
+      .filter(([code]: [string, string]) => code === stateCode)
+      .map(([, city]: [string, string]) => city);
+  };
+
+  // Geolocation with city support
   const getUserLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
-          const apiKey = 'b025e6a6666e4139a67048bf10d96d99'; // Replace with your OpenCage API key
+          const apiKey = process.env.REACT_APP_OPENCAGE_API_KEY || 'b025e6a6666e4139a67048bf10d96d99';
           try {
             const response = await fetch(
               `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=${apiKey}&language=pt`
             );
             const data = await response.json();
-            const state = data.results[0]?.components.state || 'Desconhecido';
-            setUserState(state);
+            const state = (data.results[0]?.components.state || 'Desconhecido') as StateName;
+            const city = data.results[0]?.components.city || 'Desconhecido';
 
-            // Apply discount only if no state was manually selected
-            if (!userState || userState === 'Desconhecido') {
-              const randomProduct = products[Math.floor(Math.random() * products.length)];
-              const originalPrice = parseFloat(randomProduct.price.replace('R$ ', '').replace(',', '.'));
-              const discount = originalPrice * 0.20;
-              const discountedPrice = (originalPrice - discount).toFixed(2).replace('.', ',');
-              setDiscountedProduct({
-                ...randomProduct,
-                price: `R$ ${discountedPrice}`,
-                originalPrice: randomProduct.price,
-                discount: '20% OFF',
-              });
+            setUserState(state);
+            setUserCity(city);
+
+            if (state !== 'Desconhecido' && city !== 'Desconhecido') {
+              setModalStep('loading');
+              setTimeout(() => {
+                const distance = (Math.random() * (8 - 6.5) + 6.5).toFixed(1);
+                setStoreDistance(parseFloat(distance));
+
+                const randomProduct = products[Math.floor(Math.random() * products.length)];
+                const originalPrice = parseFloat(randomProduct.price.replace('R$ ', '').replace(',', '.'));
+                const discount = originalPrice * 0.20;
+                const discountedPrice = (originalPrice - discount).toFixed(2).replace('.', ',');
+
+                setDiscountedProduct({
+                  ...randomProduct,
+                  price: `R$ ${discountedPrice}`,
+                  originalPrice: randomProduct.price,
+                  discount: '20% OFF',
+                });
+
+                setModalStep('result');
+              }, 3000); // 3 seconds
             }
           } catch (error) {
-            console.error('Error fetching state:', error);
+            console.error('Error fetching location:', error);
             setUserState('Desconhecido');
+            setUserCity('Selecione uma cidade');
           }
         },
         (error) => {
           console.error('Error getting location:', error);
           setUserState('Desconhecido');
+          setUserCity('Selecione uma cidade');
         }
       );
     } else {
       setUserState('Desconhecido');
+      setUserCity('Selecione uma cidade');
       console.log('Geolocation is not supported by this browser.');
     }
   };
 
-  // Run geolocation on mount as fallback, but modal takes precedence
+  // Run geolocation on mount as fallback
   useEffect(() => {
     if (!userState || userState === 'Desconhecido') {
       getUserLocation();
@@ -360,51 +398,118 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* Modal for state selection */}
+      {/* Modal for state and city selection */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Selecione seu estado</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Escolha seu estado para aproveitar promoções exclusivas!
-            </p>
-            <select
-              id="state-selector"
-              value={userState || 'Desconhecido'}
-              onChange={handleStateSelect}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-4"
-            >
-              <option value="Desconhecido">Selecione um estado</option>
-              {Object.entries(estados_input).map(([code, name]) => (
-                <option key={code} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={() => setIsModalOpen(false)}
-              disabled={userState === 'Desconhecido' || !userState}
-              className={`w-full py-2 rounded-lg text-white ${
-                userState && userState !== 'Desconhecido'
-                  ? 'bg-emerald-600 hover:bg-emerald-700'
-                  : 'bg-gray-400 cursor-not-allowed'
-              }`}
-            >
-              Continuar
-            </button>
+          <div
+            className={`bg-white p-6 rounded-lg shadow-lg ${
+              modalStep === 'result' ? 'animate-modal-pulse' : ''
+            } ${screen.width <= 640 ? 'max-w-xs w-11/12' : 'max-w-sm w-full'} text-center`}
+          >
+            {modalStep === 'state' && (
+              <>
+                <h2 className="text-xl font-bold text-gray-600 mb-4">Procure a loja mais próxima de você!</h2>
+                <p className="text-sm text-gray-500 mb-4">Escolha seu estado:</p>
+                <select
+                  id="state-selector"
+                  value={userState || 'Desconhecido'}
+                  onChange={handleStateSelect}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-4 text-center"
+                >
+                  <option value="Desconhecido">Selecione um estado</option>
+                  {Object.entries(estados_input).map(([code, name]) => (
+                    <option key={code} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleStateNext}
+                  disabled={userState === 'Desconhecido' || !userState}
+                  className={`w-full py-2 rounded-lg text-white ${
+                    userState && userState !== 'Desconhecido'
+                      ? 'bg-emerald-600 hover:bg-emerald-700'
+                      : 'bg-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  Próximo
+                </button>
+              </>
+            )}
+            {modalStep === 'city' && (
+              <>
+                <h2 className="text-xl font-bold text-gray-600 mb-4">Estamos quase lá...</h2>
+                <p className="text-sm text-gray-500 mb-4">Agora, selecione sua cidade:</p>
+                <select
+                  id="city-selector"
+                  value={userCity || 'Selecione uma cidade'}
+                  onChange={handleCitySelect}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-4 text-center"
+                >
+                  <option value="Selecione uma cidade">Selecione uma cidade</option>
+                  {getCitiesForState(userState).map((city) => (
+                    <option key={city} value={city}>
+                      {city}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleCityConfirm}
+                  disabled={userCity === 'Selecione uma cidade' || !userCity}
+                  className={`w-full py-2 rounded-lg text-white ${
+                    userCity && userCity !== 'Selecione uma cidade'
+                      ? 'bg-emerald-600 hover:bg-emerald-700'
+                      : 'bg-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  Procurar loja mais próxima
+                </button>
+              </>
+            )}
+            {modalStep === 'loading' && (
+              <div>
+                <h2 className="text-xl font-bold text-gray-600 mb-4">Procurando a loja mais próxima...</h2>
+                <p className="text-sm text-gray-500 mb-4">Procurando a loja mais próxima de você em {userCity}...</p>
+                <div className="loader mx-auto w-8 h-8 border-4 border-t-emerald-600 border-gray-200 rounded-full animate-spin"></div>
+              </div>
+            )}
+            {modalStep === 'result' && (
+              <>
+                <div className="flex justify-center mb-4">
+                  <span className="text-green-500 bg-green-100 rounded-full w-12 h-12 flex items-center justify-center">
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                  </span>
+                </div>
+                <h2 className="text-xl font-bold text-gray-600 mb-4">A loja mais próxima fica a {storeDistance} km de você!</h2>
+                <p className="text-sm text-gray-500 mb-4">Seu pedido chegará entre 30 a 50 minutos.</p>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="w-full py-2 rounded-lg text-white bg-emerald-600 hover:bg-emerald-700"
+                >
+                  Ver produtos disponíveis
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
 
-      {/* Main content (blurred when modal is open) */}
+      {/* Main content */}
       <div className={isModalOpen ? 'filter blur-sm pointer-events-none' : ''}>
         <Header />
         <Hero />
         <main className="container mx-auto px-4 py-8">
-          {/* Display promotion if userState is available and not 'Desconhecido' */}
-          {userState && userState !== 'Desconhecido' && discountedProduct && (
+          {userState && userState !== 'Desconhecido' && userCity && userCity !== 'Selecione uma cidade' && discountedProduct && (
             <div className="mb-6 p-4 bg-emerald-100 text-emerald-800 rounded-lg text-center">
-              <h3 className="text-xl font-bold">Promoção Especial ({userState})</h3>
+              <h3 className="text-xl font-bold">Promoção Especial ({userState} - {userCity})</h3>
               <p className="text-sm">Aproveite 20% de desconto em um produto selecionado!</p>
               <div className="mt-2">
                 <p className="font-semibold">{discountedProduct.name}</p>
@@ -415,8 +520,6 @@ function App() {
               </div>
             </div>
           )}
-
-          {/* Always show Categories unless a category is selected */}
           {!selectedCategory && <Categories onCategorySelect={setSelectedCategory} />}
           <Products
             selectedCategory={selectedCategory}
