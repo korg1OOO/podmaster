@@ -9,7 +9,7 @@ const Contact: React.FC = () => {
           <div>
             <div className="flex items-center space-x-3 mb-6">
               <img
-                src="https://ext.same-assets.com/2298405988/2042994942.jpeg"
+                src="https://res.cloudinary.com/dfawdodax/image/upload/v1750616274/WhatsApp_Image_2025-06-22_at_15.05.18_qdmcgw.jpg"
                 alt=" PodMasterBR Logo"
                 className="h-12 w-12 rounded-full object-cover"
               />
@@ -48,7 +48,7 @@ const Contact: React.FC = () => {
                 </svg>
                 <div>
                   <p className="text-gray-300">Localização</p>
-                  <p className="text-white">São Paulo - SP</p>
+                  <p className="text-white">Filiais por Todos o Brasil</p>
                 </div>
               </div>
             </div>
@@ -76,7 +76,7 @@ const Contact: React.FC = () => {
 
         <div className="border-t border-gray-700 mt-12 pt-8 text-center">
           <p className="text-gray-400">
-            © 2025 PodMasterBR São Paulo. Todos os direitos reservados.
+            © 2025 PodMasterBR. Todos os direitos reservados.
           </p>
           <p className="text-gray-500 text-sm mt-2">
             Desenvolvido para a melhor experiência em pods e eletrônicos.
