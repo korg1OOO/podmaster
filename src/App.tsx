@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import Categories from './components/Categories';
@@ -272,36 +272,31 @@ function App() {
     }
   ];
 
-   // Handle state selection
+  // Handle state selection
   const handleStateSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedState = e.target.value as StateName;
     setUserState(selectedState);
+    setUserCity(null); // Reset city when state changes
   };
 
-  // Handle state confirmation
   const handleStateNext = () => {
     if (userState && userState !== 'Desconhecido') {
       setModalStep('city');
     }
   };
 
-  // Handle city selection
   const handleCitySelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedCity = e.target.value;
     setUserCity(selectedCity);
   };
 
-  // Handle city confirmation
   const handleCityConfirm = () => {
     if (userCity && userCity !== 'Selecione uma cidade') {
       setModalStep('loading');
-      // Simulate loading for 3 seconds
       setTimeout(() => {
-        // Generate random distance between 6.5 and 8 km
         const distance = (Math.random() * (8 - 6.5) + 6.5).toFixed(1);
         setStoreDistance(parseFloat(distance));
 
-        // Apply discount
         const randomProduct = products[Math.floor(Math.random() * products.length)];
         const originalPrice = parseFloat(randomProduct.price.replace('R$ ', '').replace(',', '.'));
         const discount = originalPrice * 0.20;
@@ -315,11 +310,10 @@ function App() {
         });
 
         setModalStep('result');
-      }, 3000); // 3 seconds
+      }, 3000);
     }
   };
 
-  // Get cities for the selected state
   const getCitiesForState = (state: StateName | null): string[] => {
     if (!state || state === 'Desconhecido') return [];
     const stateCode = Object.keys(estados_input).find(
@@ -331,74 +325,9 @@ function App() {
       .map(([, city]: [string, string]) => city);
   };
 
-  // Geolocation with city support
-  const getUserLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          const apiKey = process.env.REACT_APP_OPENCAGE_API_KEY || 'b025e6a6666e4139a67048bf10d96d99';
-          try {
-            const response = await fetch(
-              `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=${apiKey}&language=pt`
-            );
-            const data = await response.json();
-            const state = (data.results[0]?.components.state || 'Desconhecido') as StateName;
-            const city = data.results[0]?.components.city || 'Desconhecido';
-
-            setUserState(state);
-            setUserCity(city);
-
-            if (state !== 'Desconhecido' && city !== 'Desconhecido') {
-              setModalStep('loading');
-              setTimeout(() => {
-                const distance = (Math.random() * (8 - 6.5) + 6.5).toFixed(1);
-                setStoreDistance(parseFloat(distance));
-
-                const randomProduct = products[Math.floor(Math.random() * products.length)];
-                const originalPrice = parseFloat(randomProduct.price.replace('R$ ', '').replace(',', '.'));
-                const discount = originalPrice * 0.20;
-                const discountedPrice = (originalPrice - discount).toFixed(2).replace('.', ',');
-
-                setDiscountedProduct({
-                  ...randomProduct,
-                  price: `R$ ${discountedPrice}`,
-                  originalPrice: randomProduct.price,
-                  discount: '20% OFF',
-                });
-
-                setModalStep('result');
-              }, 3000); // 3 seconds
-            }
-          } catch (error) {
-            console.error('Error fetching location:', error);
-            setUserState('Desconhecido');
-            setUserCity('Selecione uma cidade');
-          }
-        },
-        (error) => {
-          console.error('Error getting location:', error);
-          setUserState('Desconhecido');
-          setUserCity('Selecione uma cidade');
-        }
-      );
-    } else {
-      setUserState('Desconhecido');
-      setUserCity('Selecione uma cidade');
-      console.log('Geolocation is not supported by this browser.');
-    }
-  };
-
-  // Run geolocation on mount as fallback
-  useEffect(() => {
-    if (!userState || userState === 'Desconhecido') {
-      getUserLocation();
-    }
-  }, [userState]);
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* Modal for state and city selection */}
+      <Header />
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div
@@ -501,10 +430,7 @@ function App() {
           </div>
         </div>
       )}
-
-      {/* Main content */}
-      <div className={isModalOpen ? 'filter blur-sm pointer-events-none' : ''}>
-        <Header />
+      <div className={isModalOpen ? 'opacity-75 pointer-events-none' : ''}>
         <Hero />
         <main className="container mx-auto px-4 py-8">
           {userState && userState !== 'Desconhecido' && userCity && userCity !== 'Selecione uma cidade' && discountedProduct && (

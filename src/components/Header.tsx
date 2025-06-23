@@ -1,90 +1,55 @@
 import type React from 'react';
-import { useState } from 'react'; // Import useState for toggling menu
 
 const Header: React.FC = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false); // State for menu toggle
-
-  // Toggle menu open/close
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
+  const handleMoreInfoClick = () => {
+    // Add your logic for the "Mais informações" click (e.g., open a modal or navigate)
+    alert('Mais informações clicado!');
   };
 
   return (
-    <header className="bg-gray-900 text-white shadow-lg">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between py-4">
-          {/* Logo and Brand */}
-          <div className="flex items-center space-x-3">
+    <header className="relative w-full">
+      {/* Hero Image */}
+      <div
+        className="w-full h-80 bg-cover bg-center bg-gray-800"
+        style={{
+          backgroundImage: "url('https://encrypted-tbn0.gstatic.com/images?q=tbn9GcQaoC6Pgf5FFII1eCUtjMbnNpVSfibDWlUMqg&s')",
+        }}
+      >
+        {/* Overlay for better text visibility */}
+        <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+        {/* Logo and Modal */}
+        <div className="absolute bottom-0 left-0 w-full flex justify-center">
+          <div className="relative w-full">
+            {/* Logo centered with added bottom margin */}
             <img
-              src="https://ext.same-assets.com/2298405988/2042994942.jpeg"
-              alt="PodMasterBR Logo"
-              className="h-12 w-12 rounded-full object-cover"
+              src="https://res.cloudinary.com/dfawdodax/image/upload/v1750616274/WhatsApp_Image_2025-06-22_at_15.05.18_qdmcgw.jpg"
+              alt="Master Pods BR Logo"
+              className="h-20 w-20 rounded-full object-cover border-2 border-white z-10 mx-auto mb-2"
+              style={{ transform: 'translateY(0px)' }}
             />
-            <div>
-              <h1 className="text-xl font-bold text-emerald-400">PodMasterBR</h1>
-              <p className="text-sm text-gray-300">Brasil</p>
+            {/* Full-width White Modal, adjusted with bigger top */}
+            <div className="bg-white pt-8 pb-4 px-6 rounded-t-lg shadow-lg text-center w-full" style={{ marginTop: '-32px' }}>
+              <div className="flex justify-center items-center gap-2 mb-2">
+                <h1 className="text-2xl font-bold text-gray-800">MasterPodsBR</h1>
+              </div>
+              <div className="flex justify-center items-center gap-2 mb-2">
+                {/* Location with icon and dot separator */}
+                <span className="text-sm text-gray-600">📍 São Paulo - SP</span>
+                <span className="text-gray-600">•</span>
+                <a
+                  href="#"
+                  onClick={handleMoreInfoClick}
+                  className="text-gray-600 hover:text-gray-700 text-xs no-underline"
+                >
+                  Mais informações
+                </a>
+              </div>
+              <p className="text-lg font-semibold text-green-500">
+                Aberto 24 horas
+              </p>
             </div>
           </div>
-
-          {/* Navigation (Desktop) */}
-          <nav className="hidden md:flex items-center space-x-8">
-            <a href="#inicio" className="hover:text-emerald-400 transition-colors">
-              Início
-            </a>
-            <a href="#categorias" className="hover:text-emerald-400 transition-colors">
-              Categorias
-            </a>
-            <a href="#produtos" className="hover:text-emerald-400 transition-colors">
-              Produtos
-            </a>
-            <a href="#contato" className="hover:text-emerald-400 transition-colors">
-              Contato
-            </a>
-          </nav>
-
-          {/* Mobile Menu Button */}
-          <button className="md:hidden p-2" onClick={toggleMenu}>
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
         </div>
-
-        {/* Mobile Menu */}
-        {isMenuOpen && (
-          <nav className="md:hidden bg-gray-900 py-4">
-            <div className="flex flex-col space-y-4 px-4">
-              <a
-                href="#inicio"
-                className="hover:text-emerald-400 transition-colors"
-                onClick={toggleMenu} // Close menu on link click
-              >
-                Início
-              </a>
-              <a
-                href="#categorias"
-                className="hover:text-emerald-400 transition-colors"
-                onClick={toggleMenu}
-              >
-                Categorias
-              </a>
-              <a
-                href="#produtos"
-                className="hover:text-emerald-400 transition-colors"
-                onClick={toggleMenu}
-              >
-                Produtos
-              </a>
-              <a
-                href="#contato"
-                className="hover:text-emerald-400 transition-colors"
-                onClick={toggleMenu}
-              >
-                Contato
-              </a>
-            </div>
-          </nav>
-        )}
       </div>
     </header>
   );
