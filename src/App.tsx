@@ -25,7 +25,7 @@ interface Product {
   discount?: string;
 }
 
-interface Promotion {
+export interface Promotion {
   id: number;
   title: string;
   description: string;
