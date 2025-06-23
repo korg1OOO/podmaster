@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import Slider from 'react-slick'; // Import react-slick
-import 'slick-carousel/slick/slick.css'; // Import slick CSS
-import 'slick-carousel/slick/slick-theme.css'; // Import slick theme CSS
+import Slider from 'react-slick';
+import 'slick-carousel/slick/slick.css';
+import 'slick-carousel/slick/slick-theme.css';
 
 // Define interfaces
 interface Product {
@@ -22,7 +22,7 @@ interface CartItem {
   quantity: number;
   price: string;
   discount?: string;
-  promotion?: string; // Added to track promotion type
+  promotion?: string;
 }
 
 interface Address {
@@ -71,6 +71,7 @@ const Products: React.FC<{
   const [transactionId, setTransactionId] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [promotions, setPromotions] = useState<any[]>([]); // State for dynamic promotions
 
   const API_BASE_URL = 'https://api.pushinpay.com.br';
   const TOKEN = import.meta.env.VITE_REACT_APP_PUSHINPAY_TOKEN || '34352|yY797EO2lRPCRQNoyqj8uVrYnNUAQjINdR5AHgwWe5c190b5';
@@ -315,6 +316,41 @@ const Products: React.FC<{
     }
   ];
 
+  // Function to get random unique products
+  const getRandomUniqueProducts = (arr: Product[], count: number): Product[] => {
+    const shuffled = [...arr].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, Math.min(count, arr.length));
+  };
+
+  // Set up promotions with random products on mount
+  useEffect(() => {
+    const randomProducts = getRandomUniqueProducts(products, 3);
+    const newPromotions = [
+      {
+        id: 1,
+        title: '20% OFF',
+        description: `Ganhe 20% de desconto no ${randomProducts[0]?.name || 'produto'}!`,
+        product: randomProducts[0],
+        type: 'discount',
+      },
+      {
+        id: 2,
+        title: 'Compre 1, Leve 2',
+        description: `Na compra de 1 ${randomProducts[1]?.name || 'produto'}, leve 2 unidades!`,
+        product: randomProducts[1],
+        type: 'buy1get2',
+      },
+      {
+        id: 3,
+        title: 'Compre 10, Leve 20',
+        description: `Na compra de 10 ${randomProducts[2]?.name || 'produto'}, leve 20 unidades!`,
+        product: randomProducts[2],
+        type: 'buy10get20',
+      },
+    ].filter((promo) => promo.product); // Filter out undefined products
+    setPromotions(newPromotions);
+  }, []); // Empty dependency array to run once on mount
+
   const filteredProducts = selectedCategory
     ? products.filter((product) => product.category === selectedCategory)
     : products;
@@ -324,8 +360,9 @@ const Products: React.FC<{
     setQuantity(1);
     setSelectedFlavor(product.flavors[0] || '');
 
-    // Apply discount if this is the discounted product
-    if (discountedProduct && product.id === discountedProduct.id) {
+    // Apply 20% discount if this product is part of the discount promotion
+    const discountPromo = promotions.find((promo) => promo.type === 'discount' && promo.product.id === product.id);
+    if (discountPromo || (discountedProduct && product.id === discountedProduct.id)) {
       const originalPrice = parseFloat(product.price.replace('R$ ', '').replace(',', '.'));
       const discount = originalPrice * 0.20;
       const discountedPrice = (originalPrice - discount).toFixed(2).replace('.', ',');
@@ -358,11 +395,37 @@ const Products: React.FC<{
 
   const handleAddToCart = () => {
     if (selectedFlavor && selectedProduct) {
+      let finalQuantity = quantity;
+      let finalPrice = getTotalPrice();
+      let discount: string | undefined;
+      let promotion: string | undefined;
+
+      // Check for promotions
+      const productPromotions = promotions.filter((promo) => promo.product.id === selectedProduct.id);
+      if (productPromotions.length > 0) {
+        for (const promo of productPromotions) {
+          if (promo.type === 'buy1get2' && quantity === 1) {
+            finalQuantity = 2;
+            promotion = 'Compre 1, Leve 2';
+            break;
+          } else if (promo.type === 'buy10get20' && quantity >= 10) {
+            finalQuantity = quantity * 2;
+            promotion = 'Compre 10, Leve 20';
+            break;
+          } else if (promo.type === 'discount') {
+            discount = '20% OFF';
+            break;
+          }
+        }
+      }
+
       const item: CartItem = {
         product: selectedProduct.name,
         flavor: selectedFlavor,
-        quantity,
-        price: getTotalPrice(),
+        quantity: finalQuantity,
+        price: finalPrice,
+        discount,
+        promotion,
       };
       setCart([...cart, item]);
       setCheckout(true);
@@ -370,6 +433,27 @@ const Products: React.FC<{
     } else {
       alert('Por favor, selecione um sabor!');
     }
+  };
+
+  // Carousel settings
+  const sliderSettings = {
+    dots: true,
+    infinite: true,
+    speed: 500,
+    slidesToShow: 1,
+    slidesToScroll: 1,
+    arrows: false,
+    autoplay: true,
+    autoplaySpeed: 3000,
+    responsive: [
+      {
+        breakpoint: 640,
+        settings: {
+          slidesToShow: 1,
+          slidesToScroll: 1,
+        },
+      },
+    ],
   };
 
   const handleCepChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -418,7 +502,7 @@ const Products: React.FC<{
   };
 
   const generatePix = async () => {
-    const total = parseFloat(getCartTotal().replace(',', '.')) * 100; // Convert to cents
+    const total = parseFloat(getCartTotal().replace(',', '.')) * 100;
     if (total < 50) {
       setErrorMessage('Erro: O valor mínimo é 50 centavos.');
       return;
@@ -494,10 +578,10 @@ const Products: React.FC<{
   useEffect(() => {
     let pollingInterval: NodeJS.Timeout;
     if (transactionId) {
-      pollingInterval = setInterval(checkPaymentStatus, 60000); // Poll every 60 seconds
-      checkPaymentStatus(); // Initial check
+      pollingInterval = setInterval(checkPaymentStatus, 60000);
+      checkPaymentStatus();
     }
-    return () => clearInterval(pollingInterval); // Cleanup on unmount or transactionId change
+    return () => clearInterval(pollingInterval);
   }, [transactionId]);
 
   const copyToClipboard = () => {
@@ -541,6 +625,34 @@ const Products: React.FC<{
         </div>
       )}
       <div className="container mx-auto px-4">
+        {/* Promotions Carousel */}
+        <div className="mb-12">
+          <h3 className="text-2xl font-bold text-gray-800 mb-4 text-center">Promoções</h3>
+          <Slider {...sliderSettings}>
+            {promotions.map((promo) => (
+              <div key={promo.id} className="px-2">
+                <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                  <img
+                    src={promo.product.image}
+                    alt={promo.title}
+                    className="w-full h-48 object-cover"
+                  />
+                  <div className="p-4">
+                    <h4 className="text-lg font-semibold text-gray-800 mb-2">{promo.title}</h4>
+                    <p className="text-gray-600 text-sm mb-4">{promo.description}</p>
+                    <button
+                      onClick={() => handleViewMore(promo.product)}
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors w-full"
+                    >
+                      Aproveitar Promoção
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </Slider>
+        </div>
+
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
             {selectedCategory ? `Produtos - ${selectedCategory}` : 'Nossos Produtos'}
@@ -571,25 +683,21 @@ const Products: React.FC<{
                 </div>
               </div>
               <div className="p-4 flex-grow">
-  <h3 className="font-semibold text-gray-800 mb-2 line-clamp-2">
-    {product.name}
-  </h3>
-  {product.name.length <= 13 && <div className="h-6"></div>} {/* Spacer for single-line names */}
-  <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-    {product.description}
-  </p>
-  <div className="flex flex-col items-start mt-auto">
-    <span className="text-lg font-bold text-emerald-600 inline-flex items-center mb-2">
-      R$ <span className="ml-1">{product.price.replace('R$ ', '')}</span>
-    </span>
-    <button
-      onClick={() => handleViewMore(product)}
-      className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors w-full"
-    >
-      Ver Mais
-    </button>
-  </div>
-</div>
+                <h3 className="font-semibold text-gray-800 mb-2 line-clamp-2">{product.name}</h3>
+                {product.name.length <= 13 && <div className="h-6"></div>}
+                <p className="text-gray-600 text-sm mb-3 line-clamp-2">{product.description}</p>
+                <div className="flex flex-col items-start mt-auto">
+                  <span className="text-lg font-bold text-emerald-600 inline-flex items-center mb-2">
+                    R$ <span className="ml-1">{product.price.replace('R$ ', '')}</span>
+                  </span>
+                  <button
+                    onClick={() => handleViewMore(product)}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors w-full"
+                  >
+                    Ver Mais
+                  </button>
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -780,17 +888,36 @@ const Products: React.FC<{
                 <ul>
                   {cart.map((item, index) => {
                     const isDiscounted = discountedProduct && item.product === discountedProduct.name;
-                    const originalProduct = products.find(p => p.name === item.product);
-                    const originalPrice = originalProduct ? parseFloat(originalProduct.price.replace('R$ ', '').replace(',', '.')) : 0;
-                    const displayPrice = isDiscounted ? parseFloat(item.price.replace('R$ ', '').replace(',', '.')) : originalPrice;
+                    const originalProduct = products.find((p) => p.name === item.product);
+                    const originalPrice = originalProduct
+                      ? parseFloat(originalProduct.price.replace('R$ ', '').replace(',', '.'))
+                      : 0;
+                    const displayPrice = isDiscounted
+                      ? parseFloat(item.price.replace('R$ ', '').replace(',', '.'))
+                      : originalPrice;
 
                     return (
                       <li key={index} className="text-gray-600 flex justify-between items-center">
                         {item.product} - {item.flavor} x{item.quantity}
-                        {isDiscounted && <span className="ml-2 text-emerald-600">({item.discount})</span>}
+                        {(item.discount || item.promotion) && (
+                          <span className="ml-2 text-emerald-600">
+                            ({item.discount || item.promotion})
+                          </span>
+                        )}
                         <span className="ml-2 inline-flex items-center">
-                          R$ <span className="ml-1">{isDiscounted ? item.price.replace('R$ ', '') : (originalPrice * item.quantity).toFixed(2).replace('.', ',')}</span>
-                          {!isDiscounted && originalPrice > 0 && <span className="ml-2 text-gray-500 line-through">R$ {(originalPrice * item.quantity).toFixed(2).replace('.', ',')}</span>}
+                          R${' '}
+                          <span className="ml-1">
+                            {isDiscounted
+                              ? item.price.replace('R$ ', '')
+                              : (originalPrice * (item.promotion ? quantity : item.quantity))
+                                  .toFixed(2)
+                                  .replace('.', ',')}
+                          </span>
+                          {!isDiscounted && originalPrice > 0 && item.discount && (
+                            <span className="ml-2 text-gray-500 line-through">
+                              R$ {(originalPrice * item.quantity).toFixed(2).replace('.', ',')}
+                            </span>
+                          )}
                         </span>
                         <button
                           onClick={() => removeFromCart(index)}
@@ -811,7 +938,9 @@ const Products: React.FC<{
                 )}
                 {errorMessage && <p className="text-red-500 mt-2">{errorMessage}</p>}
                 <p className="text-sm text-gray-500 mt-4">
-                  A PUSHIN PAY atua exclusivamente como processadora de pagamentos e não possui qualquer responsabilidade pela entrega, suporte, conteúdo, qualidade ou cumprimento das obrigações relacionadas aos produtos ou serviços oferecidos pelo vendedor.
+                  A PUSHIN PAY atua exclusivamente como processadora de pagamentos e não possui qualquer
+                  responsabilidade pela entrega, suporte, conteúdo, qualidade ou cumprimento das obrigações
+                  relacionadas aos produtos ou serviços oferecidos pelo vendedor.
                 </p>
               </div>
             </div>
@@ -838,6 +967,12 @@ const Products: React.FC<{
             .flex-col.items-start button {
               width: 100% !important;
             }
+          }
+          .slick-dots li button:before {
+            color: #10b981 !important;
+          }
+          .slick-dots li.slick-active button:before {
+            color: #059669 !important;
           }
         `}
       </style>

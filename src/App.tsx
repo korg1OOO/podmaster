@@ -433,19 +433,7 @@ function App() {
       <div className={isModalOpen ? 'opacity-75 pointer-events-none' : ''}>
         <Hero />
         <main className="container mx-auto px-4 py-8">
-          {userState && userState !== 'Desconhecido' && userCity && userCity !== 'Selecione uma cidade' && discountedProduct && (
-            <div className="mb-6 p-4 bg-emerald-100 text-emerald-800 rounded-lg text-center">
-              <h3 className="text-xl font-bold">Promoção Especial ({userState} - {userCity})</h3>
-              <p className="text-sm">Aproveite 20% de desconto em um produto selecionado!</p>
-              <div className="mt-2">
-                <p className="font-semibold">{discountedProduct.name}</p>
-                <p className="line-through text-gray-500">{discountedProduct.originalPrice}</p>
-                <p className="text-lg font-bold text-emerald-600">
-                  {discountedProduct.price} ({discountedProduct.discount})
-                </p>
-              </div>
-            </div>
-          )}
+
           {!selectedCategory && <Categories onCategorySelect={setSelectedCategory} />}
           <Products
             selectedCategory={selectedCategory}
