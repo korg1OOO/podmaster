@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import Slider from 'react-slick'; // Import react-slick
+import 'slick-carousel/slick/slick.css'; // Import slick CSS
+import 'slick-carousel/slick/slick-theme.css'; // Import slick theme CSS
 
 // Define interfaces
 interface Product {
@@ -9,8 +12,8 @@ interface Product {
   description: string;
   category: string;
   flavors: string[];
-  originalPrice?: string; // Added as optional
-  discount?: string;     // Added as optional
+  originalPrice?: string;
+  discount?: string;
 }
 
 interface CartItem {
@@ -18,7 +21,8 @@ interface CartItem {
   flavor: string;
   quantity: number;
   price: string;
-  discount?: string;     // Added as optional
+  discount?: string;
+  promotion?: string; // Added to track promotion type
 }
 
 interface Address {
@@ -38,7 +42,7 @@ interface QrCodeData {
   value: number;
   qr_code_base64: string;
   webhook: string | null;
-  split_rules: any[]; // Adjust based on actual API response if needed
+  split_rules: any[];
   end_to_end_id: string | null;
   payer_name: string | null;
   payer_national_registration: string | null;
@@ -47,7 +51,7 @@ interface QrCodeData {
 const Products: React.FC<{
   selectedCategory: string | null;
   onBack: () => void;
-  discountedProduct?: any; // Optional prop for the discounted product
+  discountedProduct?: any;
 }> = ({ selectedCategory, onBack, discountedProduct }) => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -566,25 +570,26 @@ const Products: React.FC<{
                   </span>
                 </div>
               </div>
-              <div className="p-4">
-                <h3 className="font-semibold text-gray-800 mb-2 line-clamp-2">
-                  {product.name}
-                </h3>
-                <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                  {product.description}
-                </p>
-                <div className="flex items-center justify-between">
-                  <span className="text-lg font-bold text-emerald-600">
-                    {product.price}
-                  </span>
-                  <button
-                    onClick={() => handleViewMore(product)}
-                    className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                  >
-                    Ver Mais
-                  </button>
-                </div>
-              </div>
+              <div className="p-4 flex-grow">
+  <h3 className="font-semibold text-gray-800 mb-2 line-clamp-2">
+    {product.name}
+  </h3>
+  {product.name.length <= 13 && <div className="h-6"></div>} {/* Spacer for single-line names */}
+  <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+    {product.description}
+  </p>
+  <div className="flex flex-col items-start mt-auto">
+    <span className="text-lg font-bold text-emerald-600 inline-flex items-center mb-2">
+      R$ <span className="ml-1">{product.price.replace('R$ ', '')}</span>
+    </span>
+    <button
+      onClick={() => handleViewMore(product)}
+      className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors w-full"
+    >
+      Ver Mais
+    </button>
+  </div>
+</div>
             </div>
           ))}
         </div>
@@ -604,7 +609,9 @@ const Products: React.FC<{
                 className="w-full h-48 object-cover mb-4"
               />
               <div className="text-gray-600 mb-2">
-                <span className="font-bold">{selectedProduct.price}</span>
+                <span className="font-bold text-emerald-600 inline-flex items-center">
+                  R$ <span className="ml-1">{selectedProduct.price.replace('R$ ', '')}</span>
+                </span>
                 {selectedProduct.originalPrice && (
                   <span className="ml-2 text-gray-500 line-through">{selectedProduct.originalPrice}</span>
                 )}
@@ -781,8 +788,8 @@ const Products: React.FC<{
                       <li key={index} className="text-gray-600 flex justify-between items-center">
                         {item.product} - {item.flavor} x{item.quantity}
                         {isDiscounted && <span className="ml-2 text-emerald-600">({item.discount})</span>}
-                        <span className="ml-2">
-                          {isDiscounted ? item.price : `R$ ${(originalPrice * item.quantity).toFixed(2).replace('.', ',')}`}
+                        <span className="ml-2 inline-flex items-center">
+                          R$ <span className="ml-1">{isDiscounted ? item.price.replace('R$ ', '') : (originalPrice * item.quantity).toFixed(2).replace('.', ',')}</span>
                           {!isDiscounted && originalPrice > 0 && <span className="ml-2 text-gray-500 line-through">R$ {(originalPrice * item.quantity).toFixed(2).replace('.', ',')}</span>}
                         </span>
                         <button
@@ -797,7 +804,9 @@ const Products: React.FC<{
                 </ul>
                 {cart.length > 0 && (
                   <div className="mt-2 text-gray-800 font-semibold">
-                    Total: R$ {getCartTotal()}
+                    <span className="inline-flex items-center">
+                      R$ <span className="ml-1">{getCartTotal()}</span>
+                    </span>
                   </div>
                 )}
                 {errorMessage && <p className="text-red-500 mt-2">{errorMessage}</p>}
@@ -809,6 +818,29 @@ const Products: React.FC<{
           </div>
         )}
       </div>
+      <style>
+        {`
+          @media (max-width: 640px) {
+            .inline-flex.items-center span {
+              display: inline-flex !important;
+              gap: 0;
+            }
+            .inline-flex.items-center span.ml-1 {
+              margin-left: 0.25rem !important;
+            }
+            .flex-col.items-start {
+              flex-direction: column !important;
+              align-items: flex-start !important;
+            }
+            .flex-col.items-start .mb-2 {
+              margin-bottom: 0.5rem !important;
+            }
+            .flex-col.items-start button {
+              width: 100% !important;
+            }
+          }
+        `}
+      </style>
     </section>
   );
 };

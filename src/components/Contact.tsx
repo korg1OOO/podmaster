@@ -9,7 +9,7 @@ const Contact: React.FC = () => {
           <div>
             <div className="flex items-center space-x-3 mb-6">
               <img
-                src="https://res.cloudinary.com/dfawdodax/image/upload/v1750616274/WhatsApp_Image_2025-06-22_at_15.05.18_qdmcgw.jpg"
+                src="https://res.cloudinary.com/dfawdodax/image/upload/v1750677665/logo_bb6wsq.png"
                 alt=" PodMasterBR Logo"
                 className="h-12 w-12 rounded-full object-cover"
               />
