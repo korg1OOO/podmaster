@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import Categories from './components/Categories';
 import Products from './components/Products';
 import Contact from './components/Contact';
+import Slider from 'react-slick';
+import 'slick-carousel/slick/slick.css';
+import 'slick-carousel/slick/slick-theme.css';
 import { cidades_por_estados, estados_input } from './cidades';
 
 // Define types
@@ -22,6 +25,14 @@ interface Product {
   discount?: string;
 }
 
+interface Promotion {
+  id: number;
+  title: string;
+  description: string;
+  product: Product;
+  type: string;
+}
+
 function App() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [userState, setUserState] = useState<StateName | null>(null);
@@ -30,6 +41,7 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(true);
   const [modalStep, setModalStep] = useState<'state' | 'city' | 'loading' | 'result'>('state');
   const [storeDistance, setStoreDistance] = useState<number | null>(null);
+  const [promotions, setPromotions] = useState<Promotion[]>([]); // State for promotions
 
   // Mock products (should match the ones in Products.tsx)
   const products = [

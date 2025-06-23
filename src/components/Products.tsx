@@ -325,7 +325,7 @@ const Products: React.FC<{
   // Set up promotions with random products on mount
   useEffect(() => {
     const randomProducts = getRandomUniqueProducts(products, 3);
-    const newPromotions = [
+    const newPromotions: Promotion[] = [
       {
         id: 1,
         title: '20% OFF',
@@ -347,9 +347,9 @@ const Products: React.FC<{
         product: randomProducts[2],
         type: 'buy10get20',
       },
-    ].filter((promo) => promo.product); // Filter out undefined products
+    ].filter((promo) => promo.product) as Promotion[];
     setPromotions(newPromotions);
-  }, []); // Empty dependency array to run once on mount
+  }, []);
 
   const filteredProducts = selectedCategory
     ? products.filter((product) => product.category === selectedCategory)
@@ -368,7 +368,7 @@ const Products: React.FC<{
       const discountedPrice = (originalPrice - discount).toFixed(2).replace('.', ',');
       setSelectedProduct({
         ...product,
-        price: `R$ ${discountedPrice}`,
+        price: discountedPrice === 'NaN' ? product.price : `R$ ${discountedPrice}`,
         originalPrice: product.price,
         discount: '20% OFF',
       });
@@ -440,17 +440,19 @@ const Products: React.FC<{
     dots: true,
     infinite: true,
     speed: 500,
-    slidesToShow: 1,
+    slidesToShow: 3, // Show 3 slides on desktop
     slidesToScroll: 1,
     arrows: false,
-    autoplay: true,
-    autoplaySpeed: 3000,
+    autoplay: false, // Disable autoplay on desktop
     responsive: [
       {
-        breakpoint: 640,
+        breakpoint: 640, // Mobile breakpoint (sm)
         settings: {
-          slidesToShow: 1,
+          slidesToShow: 1, // Show 1 slide on mobile
           slidesToScroll: 1,
+          autoplay: true, // Enable autoplay on mobile
+          autoplaySpeed: 3000,
+          dots: true,
         },
       },
     ],
@@ -613,25 +615,26 @@ const Products: React.FC<{
   };
 
   return (
-    <section id="produtos" className="py-16 bg-gray-50">
-      {selectedCategory && (
-        <div className="mb-4">
-          <button
-            onClick={onBack}
-            className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg font-medium transition-colors"
-          >
-            Voltar para Categorias
-          </button>
-        </div>
-      )}
-      <div className="container mx-auto px-4">
-        {/* Promotions Carousel */}
-        <div className="mb-12">
-          <h3 className="text-2xl font-bold text-gray-800 mb-4 text-center">Promoções</h3>
+  <section id="produtos" className="py-16 bg-gray-50">
+    {selectedCategory && (
+      <div className="mb-4">
+        <button
+          onClick={onBack}
+          className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg font-medium transition-colors"
+        >
+          Voltar para Categorias
+        </button>
+      </div>
+    )}
+    <div className="container mx-auto px-4">
+      {/* Promotions Carousel - Moved Above */}
+      <div className="mb-12">
+        <h3 className="text-2xl font-bold text-gray-800 mb-4 text-center">Promoções</h3>
+        <div className="promotion-carousel">
           <Slider {...sliderSettings}>
             {promotions.map((promo) => (
               <div key={promo.id} className="px-2">
-                <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="bg-white rounded-lg shadow-md overflow-hidden h-full">
                   <img
                     src={promo.product.image}
                     alt={promo.title}
@@ -652,332 +655,348 @@ const Products: React.FC<{
             ))}
           </Slider>
         </div>
+      </div>
 
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
-            {selectedCategory ? `Produtos - ${selectedCategory}` : 'Nossos Produtos'}
-          </h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            {selectedCategory
-              ? `Confira nossos produtos na categoria ${selectedCategory}`
-              : 'Confira nossa seleção de produtos de alta qualidade'}
-          </p>
-        </div>
+      {/* Nossos Produtos - Moved Below */}
+      <div className="text-center mb-12">
+        <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
+          {selectedCategory ? `Produtos - ${selectedCategory}` : 'Nossos Produtos'}
+        </h2>
+        <p className="text-gray-600 max-w-2xl mx-auto">
+          {selectedCategory
+            ? `Confira nossos produtos na categoria ${selectedCategory}`
+            : 'Confira nossa seleção de produtos de alta qualidade'}
+        </p>
+      </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-6">
-          {filteredProducts.map((product) => (
-            <div
-              key={product.id}
-              className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group"
-            >
-              <div className="relative w-full h-48">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute top-2 right-2">
-                  <span className="bg-emerald-500 text-white text-xs px-2 py-1 rounded-full">
-                    {product.category}
-                  </span>
-                </div>
-              </div>
-              <div className="p-4 flex-grow">
-                <h3 className="font-semibold text-gray-800 mb-2 line-clamp-2">{product.name}</h3>
-                {product.name.length <= 13 && <div className="h-6"></div>}
-                <p className="text-gray-600 text-sm mb-3 line-clamp-2">{product.description}</p>
-                <div className="flex flex-col items-start mt-auto">
-                  <span className="text-lg font-bold text-emerald-600 inline-flex items-center mb-2">
-                    R$ <span className="ml-1">{product.price.replace('R$ ', '')}</span>
-                  </span>
-                  <button
-                    onClick={() => handleViewMore(product)}
-                    className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors w-full"
-                  >
-                    Ver Mais
-                  </button>
-                </div>
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-6">
+        {filteredProducts.map((product) => (
+          <div
+            key={product.id}
+            className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group"
+          >
+            <div className="relative w-full h-48">
+              <img
+                src={product.image}
+                alt={product.name}
+                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+              />
+              <div className="absolute top-2 right-2">
+                <span className="bg-emerald-500 text-white text-xs px-2 py-1 rounded-full">
+                  {product.category}
+                </span>
               </div>
             </div>
-          ))}
-        </div>
-
-        {selectedProduct && !checkout && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-[500px]">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-semibold text-gray-800">{selectedProduct.name}</h3>
-                <button onClick={closeModal} className="text-gray-500 hover:text-gray-700">
-                  <span className="text-2xl">×</span>
+            <div className="p-4 flex-grow">
+              <h3 className="font-semibold text-gray-800 mb-2 line-clamp-2">{product.name}</h3>
+              {product.name.length <= 13 && <div className="h-6"></div>}
+              <p className="text-gray-600 text-sm mb-3 line-clamp-2">{product.description}</p>
+              <div className="flex flex-col items-start mt-auto">
+                <span className="text-lg font-bold text-emerald-600 inline-flex items-center mb-2">
+                  R$ <span className="ml-1">{product.price.replace('R$ ', '')}</span>
+                </span>
+                <button
+                  onClick={() => handleViewMore(product)}
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors w-full"
+                >
+                  Ver Mais
                 </button>
               </div>
-              <img
-                src={selectedProduct.image}
-                alt={selectedProduct.name}
-                className="w-full h-48 object-cover mb-4"
-              />
-              <div className="text-gray-600 mb-2">
-                <span className="font-bold text-emerald-600 inline-flex items-center">
-                  R$ <span className="ml-1">{selectedProduct.price.replace('R$ ', '')}</span>
-                </span>
-                {selectedProduct.originalPrice && (
-                  <span className="ml-2 text-gray-500 line-through">{selectedProduct.originalPrice}</span>
-                )}
-                {selectedProduct.discount && (
-                  <span className="ml-2 text-emerald-600">{selectedProduct.discount}</span>
-                )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {selectedProduct && !checkout && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-[500px]">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold text-gray-800">{selectedProduct.name}</h3>
+              <button onClick={closeModal} className="text-gray-500 hover:text-gray-700">
+                <span className="text-2xl">×</span>
+              </button>
+            </div>
+            <img
+              src={selectedProduct.image}
+              alt={selectedProduct.name}
+              className="w-full h-48 object-cover mb-4"
+            />
+            <div className="text-gray-600 mb-2">
+              <span className="font-bold text-emerald-600 inline-flex items-center">
+                R$ <span className="ml-1">{selectedProduct.price.replace('R$ ', '')}</span>
+              </span>
+              {selectedProduct.originalPrice && (
+                <span className="ml-2 text-gray-500 line-through">{selectedProduct.originalPrice}</span>
+              )}
+              {selectedProduct.discount && (
+                <span className="ml-2 text-emerald-600">{selectedProduct.discount}</span>
+              )}
+            </div>
+            <div className="mb-2">
+              <label className="block text-sm font-medium text-gray-700">Escolha 1 opção</label>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {selectedProduct.flavors.map((flavor) => (
+                  <button
+                    key={flavor}
+                    onClick={() => setSelectedFlavor(flavor)}
+                    className={`px-2 py-1 rounded-md text-sm ${
+                      selectedFlavor === flavor
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-gray-200 hover:bg-gray-300'
+                    }`}
+                  >
+                    {flavor}
+                  </button>
+                ))}
               </div>
-              <div className="mb-2">
-                <label className="block text-sm font-medium text-gray-700">Escolha 1 opção</label>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {selectedProduct.flavors.map((flavor) => (
-                    <button
-                      key={flavor}
-                      onClick={() => setSelectedFlavor(flavor)}
-                      className={`px-2 py-1 rounded-md text-sm ${
-                        selectedFlavor === flavor
-                          ? 'bg-emerald-500 text-white'
-                          : 'bg-gray-200 hover:bg-gray-300'
-                      }`}
-                    >
-                      {flavor}
-                    </button>
-                  ))}
+              <span className="text-xs text-gray-500">{getSelectionStatus()} OBRIGATÓRIO</span>
+            </div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => handleQuantityChange(-1)}
+                  className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                >
+                  -
+                </button>
+                <span className="px-3 py-1 bg-gray-100">{quantity}</span>
+                <button
+                  onClick={() => handleQuantityChange(1)}
+                  className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                >
+                  +
+                </button>
+              </div>
+              <button
+                onClick={handleAddToCart}
+                className="bg-black text-white px-4 py-2 rounded-lg font-medium"
+              >
+                Adicionar {getTotalPrice()}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {checkout && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-[500px]">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold text-gray-800">Checkout</h3>
+              <button onClick={closeCheckout} className="text-gray-500 hover:text-gray-700">
+                <span className="text-2xl">×</span>
+              </button>
+            </div>
+            {!qrCodeData && paymentStatus !== 'Seu pedido foi realizado com sucesso!' ? (
+              <form onSubmit={handleCheckoutSubmit}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">CEP</label>
+                  <input
+                    type="text"
+                    name="cep"
+                    value={address.cep}
+                    onChange={handleCepChange}
+                    className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+                    placeholder="Digite o CEP (ex: 12345-678)"
+                    maxLength={9}
+                  />
                 </div>
-                <span className="text-xs text-gray-500">{getSelectionStatus()} OBRIGATÓRIO</span>
-              </div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handleQuantityChange(-1)}
-                    className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
-                  >
-                    -
-                  </button>
-                  <span className="px-3 py-1 bg-gray-100">{quantity}</span>
-                  <button
-                    onClick={() => handleQuantityChange(1)}
-                    className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
-                  >
-                    +
-                  </button>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">Estado</label>
+                  <input
+                    type="text"
+                    name="estado"
+                    value={address.estado}
+                    onChange={handleAddressChange}
+                    className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">Cidade</label>
+                  <input
+                    type="text"
+                    name="cidade"
+                    value={address.cidade}
+                    onChange={handleAddressChange}
+                    className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">Bairro</label>
+                  <input
+                    type="text"
+                    name="bairro"
+                    value={address.bairro}
+                    onChange={handleAddressChange}
+                    className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">Rua</label>
+                  <input
+                    type="text"
+                    name="rua"
+                    value={address.rua}
+                    onChange={handleAddressChange}
+                    className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">Número</label>
+                  <input
+                    type="text"
+                    name="numero"
+                    value={address.numero}
+                    onChange={handleAddressChange}
+                    className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">Complemento (opcional)</label>
+                  <input
+                    type="text"
+                    name="complemento"
+                    value={address.complemento}
+                    onChange={handleAddressChange}
+                    className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+                  />
                 </div>
                 <button
-                  onClick={handleAddToCart}
-                  className="bg-black text-white px-4 py-2 rounded-lg font-medium"
+                  type="submit"
+                  className="w-full bg-emerald-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-600"
                 >
-                  Adicionar {getTotalPrice()}
+                  Pagar com PIX
                 </button>
+              </form>
+            ) : (
+              <div className="text-center">
+                <h4 className="font-semibold text-gray-800 mb-4">Pague com PIX</h4>
+                {qrCodeData && (
+                  <>
+                    <img src={qrCodeData.qr_code_base64} alt="QR Code PIX" className="mx-auto mb-4 max-w-[200px]" />
+                    <div className="mb-4">
+                      <p className="text-sm text-gray-600 break-all">{qrCodeData.qr_code}</p>
+                      <button
+                        onClick={copyToClipboard}
+                        className="mt-2 bg-emerald-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-600"
+                      >
+                        Copiar Código
+                      </button>
+                    </div>
+                  </>
+                )}
+                {paymentStatus && <p className="text-sm text-gray-600">{paymentStatus}</p>}
               </div>
-            </div>
-          </div>
-        )}
+            )}
+            <div className="mt-4">
+              <h4 className="font-semibold text-gray-800">Carrinho</h4>
+              <ul>
+                {cart.map((item, index) => {
+                  const isDiscounted = discountedProduct && item.product === discountedProduct.name;
+                  const originalProduct = products.find((p) => p.name === item.product);
+                  const originalPrice = originalProduct
+                    ? parseFloat(originalProduct.price.replace('R$ ', '').replace(',', '.'))
+                    : 0;
+                  const displayPrice = isDiscounted
+                    ? parseFloat(item.price.replace('R$ ', '').replace(',', '.'))
+                    : originalPrice;
 
-        {checkout && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-[500px]">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-semibold text-gray-800">Checkout</h3>
-                <button onClick={closeCheckout} className="text-gray-500 hover:text-gray-700">
-                  <span className="text-2xl">×</span>
-                </button>
-              </div>
-              {!qrCodeData && paymentStatus !== 'Seu pedido foi realizado com sucesso!' ? (
-                <form onSubmit={handleCheckoutSubmit}>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700">CEP</label>
-                    <input
-                      type="text"
-                      name="cep"
-                      value={address.cep}
-                      onChange={handleCepChange}
-                      className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-                      placeholder="Digite o CEP (ex: 12345-678)"
-                      maxLength={9}
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700">Estado</label>
-                    <input
-                      type="text"
-                      name="estado"
-                      value={address.estado}
-                      onChange={handleAddressChange}
-                      className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700">Cidade</label>
-                    <input
-                      type="text"
-                      name="cidade"
-                      value={address.cidade}
-                      onChange={handleAddressChange}
-                      className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700">Bairro</label>
-                    <input
-                      type="text"
-                      name="bairro"
-                      value={address.bairro}
-                      onChange={handleAddressChange}
-                      className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700">Rua</label>
-                    <input
-                      type="text"
-                      name="rua"
-                      value={address.rua}
-                      onChange={handleAddressChange}
-                      className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700">Número</label>
-                    <input
-                      type="text"
-                      name="numero"
-                      value={address.numero}
-                      onChange={handleAddressChange}
-                      className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700">Complemento (opcional)</label>
-                    <input
-                      type="text"
-                      name="complemento"
-                      value={address.complemento}
-                      onChange={handleAddressChange}
-                      className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="w-full bg-emerald-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-600"
-                  >
-                    Pagar com PIX
-                  </button>
-                </form>
-              ) : (
-                <div className="text-center">
-                  <h4 className="font-semibold text-gray-800 mb-4">Pague com PIX</h4>
-                  {qrCodeData && (
-                    <>
-                      <img src={qrCodeData.qr_code_base64} alt="QR Code PIX" className="mx-auto mb-4 max-w-[200px]" />
-                      <div className="mb-4">
-                        <p className="text-sm text-gray-600 break-all">{qrCodeData.qr_code}</p>
-                        <button
-                          onClick={copyToClipboard}
-                          className="mt-2 bg-emerald-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-600"
-                        >
-                          Copiar Código
-                        </button>
-                      </div>
-                    </>
-                  )}
-                  {paymentStatus && <p className="text-sm text-gray-600">{paymentStatus}</p>}
-                </div>
-              )}
-              <div className="mt-4">
-                <h4 className="font-semibold text-gray-800">Carrinho</h4>
-                <ul>
-                  {cart.map((item, index) => {
-                    const isDiscounted = discountedProduct && item.product === discountedProduct.name;
-                    const originalProduct = products.find((p) => p.name === item.product);
-                    const originalPrice = originalProduct
-                      ? parseFloat(originalProduct.price.replace('R$ ', '').replace(',', '.'))
-                      : 0;
-                    const displayPrice = isDiscounted
-                      ? parseFloat(item.price.replace('R$ ', '').replace(',', '.'))
-                      : originalPrice;
-
-                    return (
-                      <li key={index} className="text-gray-600 flex justify-between items-center">
-                        {item.product} - {item.flavor} x{item.quantity}
-                        {(item.discount || item.promotion) && (
-                          <span className="ml-2 text-emerald-600">
-                            ({item.discount || item.promotion})
+                  return (
+                    <li key={index} className="text-gray-600 flex justify-between items-center">
+                      {item.product} - {item.flavor} x{item.quantity}
+                      {(item.discount || item.promotion) && (
+                        <span className="ml-2 text-emerald-600">
+                          ({item.discount || item.promotion})
+                        </span>
+                      )}
+                      <span className="ml-2 inline-flex items-center">
+                        R${' '}
+                        <span className="ml-1">
+                          {isDiscounted
+                            ? item.price.replace('R$ ', '')
+                            : (originalPrice * (item.promotion ? quantity : item.quantity))
+                                .toFixed(2)
+                                .replace('.', ',')}
+                        </span>
+                        {!isDiscounted && originalPrice > 0 && item.discount && (
+                          <span className="ml-2 text-gray-500 line-through">
+                            R$ {(originalPrice * item.quantity).toFixed(2).replace('.', ',')}
                           </span>
                         )}
-                        <span className="ml-2 inline-flex items-center">
-                          R${' '}
-                          <span className="ml-1">
-                            {isDiscounted
-                              ? item.price.replace('R$ ', '')
-                              : (originalPrice * (item.promotion ? quantity : item.quantity))
-                                  .toFixed(2)
-                                  .replace('.', ',')}
-                          </span>
-                          {!isDiscounted && originalPrice > 0 && item.discount && (
-                            <span className="ml-2 text-gray-500 line-through">
-                              R$ {(originalPrice * item.quantity).toFixed(2).replace('.', ',')}
-                            </span>
-                          )}
-                        </span>
-                        <button
-                          onClick={() => removeFromCart(index)}
-                          className="ml-2 text-red-500 hover:text-red-700"
-                        >
-                          ×
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-                {cart.length > 0 && (
-                  <div className="mt-2 text-gray-800 font-semibold">
-                    <span className="inline-flex items-center">
-                      R$ <span className="ml-1">{getCartTotal()}</span>
-                    </span>
-                  </div>
-                )}
-                {errorMessage && <p className="text-red-500 mt-2">{errorMessage}</p>}
-                <p className="text-sm text-gray-500 mt-4">
-                  A PUSHIN PAY atua exclusivamente como processadora de pagamentos e não possui qualquer
-                  responsabilidade pela entrega, suporte, conteúdo, qualidade ou cumprimento das obrigações
-                  relacionadas aos produtos ou serviços oferecidos pelo vendedor.
-                </p>
-              </div>
+                      </span>
+                      <button
+                        onClick={() => removeFromCart(index)}
+                        className="ml-2 text-red-500 hover:text-red-700"
+                      >
+                        ×
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {cart.length > 0 && (
+                <div className="mt-2 text-gray-800 font-semibold">
+                  <span className="inline-flex items-center">
+                    R$ <span className="ml-1">{getCartTotal()}</span>
+                  </span>
+                </div>
+              )}
+              {errorMessage && <p className="text-red-500 mt-2">{errorMessage}</p>}
+              <p className="text-sm text-gray-500 mt-4">
+                A PUSHIN PAY atua exclusivamente como processadora de pagamentos e não possui qualquer
+                responsabilidade pela entrega, suporte, conteúdo, qualidade ou cumprimento das obrigações
+                relacionadas aos produtos ou serviços oferecidos pelo vendedor.
+              </p>
             </div>
           </div>
-        )}
-      </div>
-      <style>
-        {`
-          @media (max-width: 640px) {
-            .inline-flex.items-center span {
-              display: inline-flex !important;
-              gap: 0;
-            }
-            .inline-flex.items-center span.ml-1 {
-              margin-left: 0.25rem !important;
-            }
-            .flex-col.items-start {
-              flex-direction: column !important;
-              align-items: flex-start !important;
-            }
-            .flex-col.items-start .mb-2 {
-              margin-bottom: 0.5rem !important;
-            }
-            .flex-col.items-start button {
-              width: 100% !important;
-            }
+        </div>
+      )}
+    </div>
+    <style>
+      {`
+        @media (max-width: 640px) {
+          .inline-flex.items-center span {
+            display: inline-flex !important;
+            gap: 0;
           }
-          .slick-dots li button:before {
-            color: #10b981 !important;
+          .inline-flex.items-center span.ml-1 {
+            margin-left: 0.25rem !important;
           }
-          .slick-dots li.slick-active button:before {
-            color: #059669 !important;
+          .flex-col.items-start {
+            flex-direction: column !important;
+            align-items: flex-start !important;
           }
-        `}
-      </style>
-    </section>
-  );
+          .flex-col.items-start .mb-2 {
+            margin-bottom: 0.5rem !important;
+          }
+          .flex-col.items-start button {
+            width: 100% !important;
+          }
+          .promotion-carousel .slick-dots {
+            display: block !important;
+          }
+        }
+        @media (min-width: 640px) {
+          .promotion-carousel .slick-dots {
+            display: none !important; /* Hide dots on desktop */
+          }
+          .promotion-carousel .slick-slide {
+            padding: 0 8px; /* Adjust spacing between slides */
+          }
+          .promotion-carousel .slick-list {
+            margin: 0 -8px; /* Offset padding for balanced appearance */
+          }
+        }
+        .slick-dots li button:before {
+          color: #10b981 !important;
+        }
+        .slick-dots li.slick-active button:before {
+          color: #059669 !important;
+        }
+      `}
+    </style>
+  </section>
+);
 };
 
 export default Products;
