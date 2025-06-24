@@ -12,12 +12,13 @@ interface Product {
   description: string;
   category: string;
   flavors: string[];
+  image: string;
   originalPrice?: string;
   discount?: string;
 }
 
 interface CartItem {
-  id: number;
+  id: string;
   product: string;
   flavor: string;
   quantity: number;
@@ -63,6 +64,7 @@ const Products: React.FC<{
   const [quantity, setQuantity] = useState(1);
   const [selectedFlavor, setSelectedFlavor] = useState<string>('');
   const [address, setAddress] = useState<Address>({
+    id: Math.random().toString(36).substr(2, 9),
     cep: '',
     estado: '',
     cidade: '',
@@ -328,7 +330,6 @@ const Products: React.FC<{
     setQuantity(1);
     setSelectedFlavor(product.flavors[0] || '');
 
-    // Apply discount if this product matches discountedProduct
     if (discountedProduct && product.id === discountedProduct.id) {
       setSelectedProduct({
         ...product,
@@ -358,32 +359,31 @@ const Products: React.FC<{
   };
 
   const handleAddToCart = () => {
-  if (selectedFlavor && selectedProduct) {
-    let finalQuantity = quantity;
-    let promotion: string | undefined;
+    if (selectedFlavor && selectedProduct) {
+      let finalQuantity = quantity;
+      let promotion: string | undefined;
 
-    // Check if the product is part of a "buy10get20" promotion
-    if (discountedProduct && selectedProduct.id === discountedProduct.id && quantity >= 10) {
-      // Apply "buy10get20" promotion only if quantity is 10 or more
-      finalQuantity = quantity * 2;
-      promotion = 'Compre 10, Leve 20';
+      if (discountedProduct && selectedProduct.id === discountedProduct.id && quantity >= 10) {
+        finalQuantity = quantity * 2;
+        promotion = 'Compre 10, Leve 20';
+      }
+
+      const item: CartItem = {
+        id: Math.random().toString(36).substr(2, 9),
+        product: selectedProduct.name,
+        flavor: selectedFlavor,
+        quantity: finalQuantity,
+        price: getTotalPrice(),
+        discount: selectedProduct.discount,
+        promotion,
+      };
+      setCart([...cart, item]);
+      setCheckout(true);
+      setSelectedProduct(null);
+    } else {
+      alert('Por favor, selecione um sabor!');
     }
-
-    const item: CartItem = {
-      product: selectedProduct.name,
-      flavor: selectedFlavor,
-      quantity: finalQuantity,
-      price: getTotalPrice(),
-      discount: selectedProduct.discount,
-      promotion,
-    };
-    setCart([...cart, item]);
-    setCheckout(true);
-    setSelectedProduct(null);
-  } else {
-    alert('Por favor, selecione um sabor!');
-  }
-};
+  };
 
   const handleCepChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     let cep = e.target.value.replace(/\D/g, '');
@@ -675,181 +675,180 @@ const Products: React.FC<{
         )}
 
         {checkout && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div className="bg-white rounded-lg p-6 w-[500px]">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="font-semibold text-gray-800">Checkout</h3>
-        <button onClick={closeCheckout} className="text-gray-500 hover:text-gray-700">
-          <span className="text-2xl">×</span>
-        </button>
-      </div>
-      {!qrCodeData && paymentStatus !== 'Seu pedido foi realizado com sucesso!' ? (
-        <form onSubmit={handleCheckoutSubmit}>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">CEP</label>
-            <input
-              type="text"
-              name="cep"
-              value={address.cep}
-              onChange={handleCepChange}
-              className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-              placeholder="Digite o CEP (ex: 12345-678)"
-              maxLength={9}
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Estado</label>
-            <input
-              type="text"
-              name="estado"
-              value={address.estado}
-              onChange={handleAddressChange}
-              className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Cidade</label>
-            <input
-              type="text"
-              name="cidade"
-              value={address.cidade}
-              onChange={handleAddressChange}
-              className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Bairro</label>
-            <input
-              type="text"
-              name="bairro"
-              value={address.bairro}
-              onChange={handleAddressChange}
-              className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Rua</label>
-            <input
-              type="text"
-              name="rua"
-              value={address.rua}
-              onChange={handleAddressChange}
-              className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Número</label>
-            <input
-              type="text"
-              name="numero"
-              value={address.numero}
-              onChange={handleAddressChange}
-              className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Complemento (opcional)</label>
-            <input
-              type="text"
-              name="complemento"
-              value={address.complemento}
-              onChange={handleAddressChange}
-              className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-            />
-          </div>
-          {/* Warning Message for Payments at R$150,00 or More */}
-          {parseFloat(getCartTotal().replace(',', '.')) >= 150 && (
-            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
-              <p className="font-medium">Atenção!</p>
-              <p>
-                Pagamentos de R$150,00 ou mais não são permitidos e resultarão em erro. Por favor, divida sua compra em pedidos separados para prosseguir.
-              </p>
-            </div>
-          )}
-          <button
-            type="submit"
-            className="w-full bg-emerald-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
-            disabled={parseFloat(getCartTotal().replace(',', '.')) >= 150}
-          >
-            Pagar com PIX
-          </button>
-        </form>
-      ) : (
-        <div className="text-center">
-          <h4 className="font-semibold text-gray-800 mb-4">Pague com PIX</h4>
-          {qrCodeData && (
-            <>
-              <img src={qrCodeData.qr_code_base64} alt="QR Code PIX" className="mx-auto mb-4 max-w-[200px]" />
-              <div className="mb-4">
-                <p className="text-sm text-gray-600 break-all">{qrCodeData.qr_code}</p>
-                <button
-                  onClick={copyToClipboard}
-                  className="mt-2 bg-emerald-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-600"
-                >
-                  Copiar Código
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-[500px]">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-semibold text-gray-800">Checkout</h3>
+                <button onClick={closeCheckout} className="text-gray-500 hover:text-gray-700">
+                  <span className="text-2xl">×</span>
                 </button>
               </div>
-            </>
-          )}
-          {paymentStatus && <p className="text-sm text-gray-600">{paymentStatus}</p>}
-        </div>
-      )}
-      <div className="mt-4">
-        <h4 className="font-semibold text-gray-800">Carrinho</h4>
-        <ul>
-          {cart.map((item, index) => {
-            const isDiscounted = discountedProduct && item.product === discountedProduct.name;
-            const originalProduct = products.find((p) => p.name === item.product);
-            const originalPrice = originalProduct
-              ? parseFloat(originalProduct.price.replace('R$ ', '').replace(',', '.'))
-              : 0;
-            const displayPrice = isDiscounted
-              ? parseFloat(item.price.replace('R$ ', '').replace(',', '.'))
-              : originalPrice;
-
-            return (
-              <li key={index} className="text-gray-600 flex justify-between items-center">
-                {item.product} - {item.flavor} x{item.quantity}
-                {(item.discount || item.promotion) && (
-                  <span className="ml-2 text-emerald-600">
-                    ({item.discount || item.promotion})
-                  </span>
-                )}
-                <span className="ml-2 text-right inline-flex items-center">
-                  R$ <span className="ml-1">{item.price.replace('R$ ', '')}</span>
-                  {!isDiscounted && originalPrice > 0 && item.discount && (
-                    <span className="ml-2 text-gray-500 line-through">
-                      R$ {(originalPrice * item.quantity).toFixed(2).replace('.', ',')}
-                    </span>
+              {!qrCodeData && paymentStatus !== 'Seu pedido foi realizado com sucesso!' ? (
+                <form onSubmit={handleCheckoutSubmit}>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700">CEP</label>
+                    <input
+                      type="text"
+                      name="cep"
+                      value={address.cep}
+                      onChange={handleCepChange}
+                      className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+                      placeholder="Digite o CEP (ex: 12345-678)"
+                      maxLength={9}
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700">Estado</label>
+                    <input
+                      type="text"
+                      name="estado"
+                      value={address.estado}
+                      onChange={handleAddressChange}
+                      className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700">Cidade</label>
+                    <input
+                      type="text"
+                      name="cidade"
+                      value={address.cidade}
+                      onChange={handleAddressChange}
+                      className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700">Bairro</label>
+                    <input
+                      type="text"
+                      name="bairro"
+                      value={address.bairro}
+                      onChange={handleAddressChange}
+                      className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700">Rua</label>
+                    <input
+                      type="text"
+                      name="rua"
+                      value={address.rua}
+                      onChange={handleAddressChange}
+                      className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700">Número</label>
+                    <input
+                      type="text"
+                      name="numero"
+                      value={address.numero}
+                      onChange={handleAddressChange}
+                      className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700">Complemento (opcional)</label>
+                    <input
+                      type="text"
+                      name="complemento"
+                      value={address.complemento}
+                      onChange={handleAddressChange}
+                      className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+                    />
+                  </div>
+                  {parseFloat(getCartTotal().replace(',', '.')) >= 150 && (
+                    <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+                      <p className="font-medium">Atenção!</p>
+                      <p>
+                        Pagamentos de R$150,00 ou mais não são permitidos e resultarão em erro. Por favor, divida sua compra em pedidos separados para prosseguir.
+                      </p>
+                    </div>
                   )}
-                </span>
-                <button
-                  onClick={() => removeFromCart(index)}
-                  className="ml-2 text-red-500 hover:text-red-700"
-                >
-                  ×
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-        {cart.length > 0 && (
-          <div className="mt-2 text-gray-800 font-semibold">
-            <span className="inline-flex items-center">
-              R$ <span className="ml-1">{getCartTotal()}</span>
-            </span>
+                  <button
+                    type="submit"
+                    className="w-full bg-emerald-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    disabled={parseFloat(getCartTotal().replace(',', '.')) >= 150}
+                  >
+                    Pagar com PIX
+                  </button>
+                </form>
+              ) : (
+                <div className="text-center">
+                  <h4 className="font-semibold text-gray-800 mb-4">Pague com PIX</h4>
+                  {qrCodeData && (
+                    <>
+                      <img src={qrCodeData.qr_code_base64} alt="QR Code PIX" className="mx-auto mb-4 max-w-[200px]" />
+                      <div className="mb-4">
+                        <p className="text-sm text-gray-600 break-all">{qrCodeData.qr_code}</p>
+                        <button
+                          onClick={copyToClipboard}
+                          className="mt-2 bg-emerald-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-600"
+                        >
+                          Copiar Código
+                        </button>
+                      </div>
+                    </>
+                  )}
+                  {paymentStatus && <p className="text-sm text-gray-600">{paymentStatus}</p>}
+                </div>
+              )}
+              <div className="mt-4">
+                <h4 className="font-semibold text-gray-800">Carrinho</h4>
+                <ul>
+                  {cart.map((item, index) => {
+                    const isDiscounted = discountedProduct && item.product === discountedProduct.name;
+                    const originalProduct = products.find((p) => p.name === item.product);
+                    const originalPrice = originalProduct
+                      ? parseFloat(originalProduct.price.replace('R$ ', '').replace(',', '.'))
+                      : 0;
+                    const displayPrice = isDiscounted
+                      ? parseFloat(item.price.replace('R$ ', '').replace(',', '.'))
+                      : originalPrice;
+
+                    return (
+                      <li key={item.id} className="text-gray-600 flex justify-between items-center">
+                        {item.product} - {item.flavor} x{item.quantity}
+                        {(item.discount || item.promotion) && (
+                          <span className="ml-2 text-emerald-600">
+                            ({item.discount || item.promotion})
+                          </span>
+                        )}
+                        <span className="ml-2 text-right inline-flex items-center">
+                          R$ <span className="ml-1">{item.price.replace('R$ ', '')}</span>
+                          {!isDiscounted && originalPrice > 0 && item.discount && (
+                            <span className="ml-2 text-gray-500 line-through">
+                              R$ {(originalPrice * item.quantity).toFixed(2).replace('.', ',')}
+                            </span>
+                          )}
+                        </span>
+                        <button
+                          onClick={() => removeFromCart(index)}
+                          className="ml-2 text-red-500 hover:text-red-700"
+                        >
+                          ×
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {cart.length > 0 && (
+                  <div className="mt-2 text-gray-800 font-semibold">
+                    <span className="inline-flex items-center">
+                      R$ <span className="ml-1">{getCartTotal()}</span>
+                    </span>
+                  </div>
+                )}
+                {errorMessage && <p className="text-red-500 mt-2">{errorMessage}</p>}
+                <p className="text-sm text-gray-500 mt-4">
+                  A PUSHIN PAY atua exclusivamente como processadora de pagamentos e não possui qualquer
+                  responsabilidade pela entrega, suporte, conteúdo, qualidade ou cumprimento das obrigações
+                  relacionadas aos produtos ou serviços oferecidos pelo vendedor.
+                </p>
+              </div>
+            </div>
           </div>
         )}
-        {errorMessage && <p className="text-red-500 mt-2">{errorMessage}</p>}
-        <p className="text-sm text-gray-500 mt-4">
-          A PUSHIN PAY atua exclusivamente como processadora de pagamentos e não possui qualquer
-          responsabilidade pela entrega, suporte, conteúdo, qualidade ou cumprimento das obrigações
-          relacionadas aos produtos ou serviços oferecidos pelo vendedor.
-        </p>
-      </div>
-    </div>
-  </div>
-)}
       </div>
       <style>
         {`
