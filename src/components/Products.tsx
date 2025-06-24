@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Promotion } from '../App';
 import Slider from 'react-slick';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
@@ -7,8 +6,8 @@ import 'slick-carousel/slick/slick-theme.css';
 // Define interfaces
 interface Product {
   id: number;
+  product: string;
   name: string;
-  image: string;
   price: string;
   description: string;
   category: string;
@@ -18,6 +17,7 @@ interface Product {
 }
 
 interface CartItem {
+  id: number;
   product: string;
   flavor: string;
   quantity: number;
@@ -27,6 +27,7 @@ interface CartItem {
 }
 
 interface Address {
+  id: string;
   cep: string;
   estado: string;
   cidade: string;
@@ -52,13 +53,15 @@ interface QrCodeData {
 const Products: React.FC<{
   selectedCategory: string | null;
   onBack: () => void;
-  discountedProduct?: any;
-}> = ({ selectedCategory, onBack, discountedProduct }) => {
+  discountedProduct?: Product | null;
+  cart: CartItem[];
+  setCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
+  checkout: boolean;
+  setCheckout: React.Dispatch<React.SetStateAction<boolean>>;
+}> = ({ selectedCategory, onBack, discountedProduct, cart, setCart, checkout, setCheckout }) => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [selectedFlavor, setSelectedFlavor] = useState<string>('');
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [checkout, setCheckout] = useState<boolean | null>(null);
   const [address, setAddress] = useState<Address>({
     cep: '',
     estado: '',
@@ -72,7 +75,6 @@ const Products: React.FC<{
   const [transactionId, setTransactionId] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const [promotions, setPromotions] = useState<any[]>([]); // State for dynamic promotions
 
   const API_BASE_URL = 'https://api.pushinpay.com.br';
   const TOKEN = import.meta.env.VITE_REACT_APP_PUSHINPAY_TOKEN || '34352|yY797EO2lRPCRQNoyqj8uVrYnNUAQjINdR5AHgwWe5c190b5';
@@ -317,41 +319,6 @@ const Products: React.FC<{
     }
   ];
 
-  // Function to get random unique products
-  const getRandomUniqueProducts = (arr: Product[], count: number): Product[] => {
-    const shuffled = [...arr].sort(() => 0.5 - Math.random());
-    return shuffled.slice(0, Math.min(count, arr.length));
-  };
-
-  // Set up promotions with random products on mount
-  useEffect(() => {
-    const randomProducts = getRandomUniqueProducts(products, 3);
-    const newPromotions: Promotion[] = [
-      {
-        id: 1,
-        title: '20% OFF',
-        description: `Ganhe 20% de desconto no ${randomProducts[0]?.name || 'produto'}!`,
-        product: randomProducts[0],
-        type: 'discount',
-      },
-      {
-        id: 2,
-        title: 'Compre 1, Leve 2',
-        description: `Na compra de 1 ${randomProducts[1]?.name || 'produto'}, leve 2 unidades!`,
-        product: randomProducts[1],
-        type: 'buy1get2',
-      },
-      {
-        id: 3,
-        title: 'Compre 10, Leve 20',
-        description: `Na compra de 10 ${randomProducts[2]?.name || 'produto'}, leve 20 unidades!`,
-        product: randomProducts[2],
-        type: 'buy10get20',
-      },
-    ].filter((promo) => promo.product) as Promotion[];
-    setPromotions(newPromotions);
-  }, []);
-
   const filteredProducts = selectedCategory
     ? products.filter((product) => product.category === selectedCategory)
     : products;
@@ -361,17 +328,13 @@ const Products: React.FC<{
     setQuantity(1);
     setSelectedFlavor(product.flavors[0] || '');
 
-    // Apply 20% discount if this product is part of the discount promotion
-    const discountPromo = promotions.find((promo) => promo.type === 'discount' && promo.product.id === product.id);
-    if (discountPromo || (discountedProduct && product.id === discountedProduct.id)) {
-      const originalPrice = parseFloat(product.price.replace('R$ ', '').replace(',', '.'));
-      const discount = originalPrice * 0.20;
-      const discountedPrice = (originalPrice - discount).toFixed(2).replace('.', ',');
+    // Apply discount if this product matches discountedProduct
+    if (discountedProduct && product.id === discountedProduct.id) {
       setSelectedProduct({
         ...product,
-        price: discountedPrice === 'NaN' ? product.price : `R$ ${discountedPrice}`,
-        originalPrice: product.price,
-        discount: '20% OFF',
+        price: discountedProduct.price,
+        originalPrice: discountedProduct.originalPrice,
+        discount: discountedProduct.discount,
       });
     }
   };
@@ -395,69 +358,32 @@ const Products: React.FC<{
   };
 
   const handleAddToCart = () => {
-    if (selectedFlavor && selectedProduct) {
-      let finalQuantity = quantity;
-      let finalPrice = getTotalPrice();
-      let discount: string | undefined;
-      let promotion: string | undefined;
+  if (selectedFlavor && selectedProduct) {
+    let finalQuantity = quantity;
+    let promotion: string | undefined;
 
-      // Check for promotions
-      const productPromotions = promotions.filter((promo) => promo.product.id === selectedProduct.id);
-      if (productPromotions.length > 0) {
-        for (const promo of productPromotions) {
-          if (promo.type === 'buy1get2' && quantity === 1) {
-            finalQuantity = 2;
-            promotion = 'Compre 1, Leve 2';
-            break;
-          } else if (promo.type === 'buy10get20' && quantity >= 10) {
-            finalQuantity = quantity * 2;
-            promotion = 'Compre 10, Leve 20';
-            break;
-          } else if (promo.type === 'discount') {
-            discount = '20% OFF';
-            break;
-          }
-        }
-      }
-
-      const item: CartItem = {
-        product: selectedProduct.name,
-        flavor: selectedFlavor,
-        quantity: finalQuantity,
-        price: finalPrice,
-        discount,
-        promotion,
-      };
-      setCart([...cart, item]);
-      setCheckout(true);
-      setSelectedProduct(null);
-    } else {
-      alert('Por favor, selecione um sabor!');
+    // Check if the product is part of a "buy10get20" promotion
+    if (discountedProduct && selectedProduct.id === discountedProduct.id && quantity >= 10) {
+      // Apply "buy10get20" promotion only if quantity is 10 or more
+      finalQuantity = quantity * 2;
+      promotion = 'Compre 10, Leve 20';
     }
-  };
 
-  // Carousel settings
-  const sliderSettings = {
-    dots: true,
-    infinite: true,
-    speed: 500,
-    slidesToShow: 3, // Show 3 slides on desktop
-    slidesToScroll: 1,
-    arrows: false,
-    autoplay: false, // Disable autoplay on desktop
-    responsive: [
-      {
-        breakpoint: 640, // Mobile breakpoint (sm)
-        settings: {
-          slidesToShow: 1, // Show 1 slide on mobile
-          slidesToScroll: 1,
-          autoplay: true, // Enable autoplay on mobile
-          autoplaySpeed: 3000,
-          dots: true,
-        },
-      },
-    ],
-  };
+    const item: CartItem = {
+      product: selectedProduct.name,
+      flavor: selectedFlavor,
+      quantity: finalQuantity,
+      price: getTotalPrice(),
+      discount: selectedProduct.discount,
+      promotion,
+    };
+    setCart([...cart, item]);
+    setCheckout(true);
+    setSelectedProduct(null);
+  } else {
+    alert('Por favor, selecione um sabor!');
+  }
+};
 
   const handleCepChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     let cep = e.target.value.replace(/\D/g, '');
@@ -533,11 +459,11 @@ const Products: React.FC<{
         setPaymentStatus('Aguardando pagamento...');
         setErrorMessage('');
       } else {
-        setErrorMessage(`Erro: ${data.message || 'Falha ao gerar QR Code.'}`);
+        setErrorMessage(`Erro: ${data.message ? data.message : 'Falha ao gerar QR Code.'}`);
       }
     } catch (error) {
       setErrorMessage('Erro ao conectar com a API.');
-      console.error(error);
+      console.error('Erro na API:', error);
     }
   };
 
@@ -616,388 +542,340 @@ const Products: React.FC<{
   };
 
   return (
-  <section id="produtos" className="py-16 bg-gray-50">
-    {selectedCategory && (
-      <div className="mb-4">
-        <button
-          onClick={onBack}
-          className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg font-medium transition-colors"
-        >
-          Voltar para Categorias
-        </button>
-      </div>
-    )}
-    <div className="container mx-auto px-4">
-      {/* Promotions Carousel - Moved Above */}
-      <div className="mb-12">
-        <h3 className="text-2xl font-bold text-gray-800 mb-4 text-center">Promoções</h3>
-        <div className="promotion-carousel">
-          <Slider {...sliderSettings}>
-            {promotions.map((promo) => (
-              <div key={promo.id} className="px-2">
-                <div className="bg-white rounded-lg shadow-md overflow-hidden h-full">
-                  <img
-                    src={promo.product.image}
-                    alt={promo.title}
-                    className="w-full h-48 object-cover"
-                  />
-                  <div className="p-4">
-                    <h4 className="text-lg font-semibold text-gray-800 mb-2">{promo.title}</h4>
-                    <p className="text-gray-600 text-sm mb-4">{promo.description}</p>
-                    <button
-                      onClick={() => handleViewMore(promo.product)}
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors w-full"
-                    >
-                      Aproveitar Promoção
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </Slider>
-        </div>
-      </div>
-
-      {/* Nossos Produtos - Moved Below */}
-      <div className="text-center mb-12">
-        <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
-          {selectedCategory ? `Produtos - ${selectedCategory}` : 'Nossos Produtos'}
-        </h2>
-        <p className="text-gray-600 max-w-2xl mx-auto">
-          {selectedCategory
-            ? `Confira nossos produtos na categoria ${selectedCategory}`
-            : 'Confira nossa seleção de produtos de alta qualidade'}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-6">
-        {filteredProducts.map((product) => (
-          <div
-            key={product.id}
-            className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group"
+    <section id="produtos" className="py-16 bg-gray-50">
+      {selectedCategory && (
+        <div className="mb-4">
+          <button
+            onClick={onBack}
+            className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg font-medium transition-colors"
           >
-            <div className="relative w-full h-48">
-              <img
-                src={product.image}
-                alt={product.name}
-                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
-              />
-              <div className="absolute top-2 right-2">
-                <span className="bg-emerald-500 text-white text-xs px-2 py-1 rounded-full">
-                  {product.category}
-                </span>
-              </div>
-            </div>
-            <div className="p-4 flex-grow">
-              <h3 className="font-semibold text-gray-800 mb-2 line-clamp-2">{product.name}</h3>
-              {product.name.length <= 13 && <div className="h-6"></div>}
-              <p className="text-gray-600 text-sm mb-3 line-clamp-2">{product.description}</p>
-              <div className="flex flex-col items-start mt-auto">
-                <span className="text-lg font-bold text-emerald-600 inline-flex items-center mb-2">
-                  R$ <span className="ml-1">{product.price.replace('R$ ', '')}</span>
-                </span>
-                <button
-                  onClick={() => handleViewMore(product)}
-                  className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors w-full"
-                >
-                  Ver Mais
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {selectedProduct && !checkout && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-[500px]">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold text-gray-800">{selectedProduct.name}</h3>
-              <button onClick={closeModal} className="text-gray-500 hover:text-gray-700">
-                <span className="text-2xl">×</span>
-              </button>
-            </div>
-            <img
-              src={selectedProduct.image}
-              alt={selectedProduct.name}
-              className="w-full h-48 object-cover mb-4"
-            />
-            <div className="text-gray-600 mb-2">
-              <span className="font-bold text-emerald-600 inline-flex items-center">
-                R$ <span className="ml-1">{selectedProduct.price.replace('R$ ', '')}</span>
-              </span>
-              {selectedProduct.originalPrice && (
-                <span className="ml-2 text-gray-500 line-through">{selectedProduct.originalPrice}</span>
-              )}
-              {selectedProduct.discount && (
-                <span className="ml-2 text-emerald-600">{selectedProduct.discount}</span>
-              )}
-            </div>
-            <div className="mb-2">
-              <label className="block text-sm font-medium text-gray-700">Escolha 1 opção</label>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {selectedProduct.flavors.map((flavor) => (
-                  <button
-                    key={flavor}
-                    onClick={() => setSelectedFlavor(flavor)}
-                    className={`px-2 py-1 rounded-md text-sm ${
-                      selectedFlavor === flavor
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-gray-200 hover:bg-gray-300'
-                    }`}
-                  >
-                    {flavor}
-                  </button>
-                ))}
-              </div>
-              <span className="text-xs text-gray-500">{getSelectionStatus()} OBRIGATÓRIO</span>
-            </div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => handleQuantityChange(-1)}
-                  className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
-                >
-                  -
-                </button>
-                <span className="px-3 py-1 bg-gray-100">{quantity}</span>
-                <button
-                  onClick={() => handleQuantityChange(1)}
-                  className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
-                >
-                  +
-                </button>
-              </div>
-              <button
-                onClick={handleAddToCart}
-                className="bg-black text-white px-4 py-2 rounded-lg font-medium"
-              >
-                Adicionar {getTotalPrice()}
-              </button>
-            </div>
-          </div>
+            Voltar para Categorias
+          </button>
         </div>
       )}
+      <div className="container mx-auto px-4">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
+            {selectedCategory ? `Produtos - ${selectedCategory}` : 'Nossos Produtos'}
+          </h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            {selectedCategory
+              ? `Confira nossos produtos na categoria ${selectedCategory}`
+              : 'Confira nossa seleção de produtos de alta qualidade'}
+          </p>
+        </div>
 
-      {checkout && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-[500px]">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold text-gray-800">Checkout</h3>
-              <button onClick={closeCheckout} className="text-gray-500 hover:text-gray-700">
-                <span className="text-2xl">×</span>
-              </button>
-            </div>
-            {!qrCodeData && paymentStatus !== 'Seu pedido foi realizado com sucesso!' ? (
-              <form onSubmit={handleCheckoutSubmit}>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700">CEP</label>
-                  <input
-                    type="text"
-                    name="cep"
-                    value={address.cep}
-                    onChange={handleCepChange}
-                    className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-                    placeholder="Digite o CEP (ex: 12345-678)"
-                    maxLength={9}
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700">Estado</label>
-                  <input
-                    type="text"
-                    name="estado"
-                    value={address.estado}
-                    onChange={handleAddressChange}
-                    className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700">Cidade</label>
-                  <input
-                    type="text"
-                    name="cidade"
-                    value={address.cidade}
-                    onChange={handleAddressChange}
-                    className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700">Bairro</label>
-                  <input
-                    type="text"
-                    name="bairro"
-                    value={address.bairro}
-                    onChange={handleAddressChange}
-                    className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700">Rua</label>
-                  <input
-                    type="text"
-                    name="rua"
-                    value={address.rua}
-                    onChange={handleAddressChange}
-                    className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700">Número</label>
-                  <input
-                    type="text"
-                    name="numero"
-                    value={address.numero}
-                    onChange={handleAddressChange}
-                    className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700">Complemento (opcional)</label>
-                  <input
-                    type="text"
-                    name="complemento"
-                    value={address.complemento}
-                    onChange={handleAddressChange}
-                    className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full bg-emerald-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-600"
-                >
-                  Pagar com PIX
-                </button>
-              </form>
-            ) : (
-              <div className="text-center">
-                <h4 className="font-semibold text-gray-800 mb-4">Pague com PIX</h4>
-                {qrCodeData && (
-                  <>
-                    <img src={qrCodeData.qr_code_base64} alt="QR Code PIX" className="mx-auto mb-4 max-w-[200px]" />
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-600 break-all">{qrCodeData.qr_code}</p>
-                      <button
-                        onClick={copyToClipboard}
-                        className="mt-2 bg-emerald-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-600"
-                      >
-                        Copiar Código
-                      </button>
-                    </div>
-                  </>
-                )}
-                {paymentStatus && <p className="text-sm text-gray-600">{paymentStatus}</p>}
-              </div>
-            )}
-            <div className="mt-4">
-              <h4 className="font-semibold text-gray-800">Carrinho</h4>
-              <ul>
-                {cart.map((item, index) => {
-                  const isDiscounted = discountedProduct && item.product === discountedProduct.name;
-                  const originalProduct = products.find((p) => p.name === item.product);
-                  const originalPrice = originalProduct
-                    ? parseFloat(originalProduct.price.replace('R$ ', '').replace(',', '.'))
-                    : 0;
-                  const displayPrice = isDiscounted
-                    ? parseFloat(item.price.replace('R$ ', '').replace(',', '.'))
-                    : originalPrice;
-
-                  return (
-                    <li key={index} className="text-gray-600 flex justify-between items-center">
-                      {item.product} - {item.flavor} x{item.quantity}
-                      {(item.discount || item.promotion) && (
-                        <span className="ml-2 text-emerald-600">
-                          ({item.discount || item.promotion})
-                        </span>
-                      )}
-                      <span className="ml-2 inline-flex items-center">
-                        R${' '}
-                        <span className="ml-1">
-                          {isDiscounted
-                            ? item.price.replace('R$ ', '')
-                            : (originalPrice * (item.promotion ? quantity : item.quantity))
-                                .toFixed(2)
-                                .replace('.', ',')}
-                        </span>
-                        {!isDiscounted && originalPrice > 0 && item.discount && (
-                          <span className="ml-2 text-gray-500 line-through">
-                            R$ {(originalPrice * item.quantity).toFixed(2).replace('.', ',')}
-                          </span>
-                        )}
-                      </span>
-                      <button
-                        onClick={() => removeFromCart(index)}
-                        className="ml-2 text-red-500 hover:text-red-700"
-                      >
-                        ×
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-              {cart.length > 0 && (
-                <div className="mt-2 text-gray-800 font-semibold">
-                  <span className="inline-flex items-center">
-                    R$ <span className="ml-1">{getCartTotal()}</span>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-6">
+          {filteredProducts.map((product) => (
+            <div
+              key={product.id}
+              className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group"
+            >
+              <div className="relative w-full h-48">
+                <img
+                  src={product.image}
+                  alt={product.name}
+                  className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                />
+                <div className="absolute top-2 right-2">
+                  <span className="bg-emerald-500 text-white text-xs px-2 py-1 rounded-full">
+                    {product.category}
                   </span>
                 </div>
-              )}
-              {errorMessage && <p className="text-red-500 mt-2">{errorMessage}</p>}
-              <p className="text-sm text-gray-500 mt-4">
-                A PUSHIN PAY atua exclusivamente como processadora de pagamentos e não possui qualquer
-                responsabilidade pela entrega, suporte, conteúdo, qualidade ou cumprimento das obrigações
-                relacionadas aos produtos ou serviços oferecidos pelo vendedor.
-              </p>
+              </div>
+              <div className="p-4 flex-grow">
+                <h3 className="font-semibold text-gray-800 mb-2 line-clamp-2">{product.name}</h3>
+                {product.name.length <= 13 && <div className="h-6"></div>}
+                <p className="text-gray-600 text-sm mb-3 line-clamp-2">{product.description}</p>
+                <div className="flex flex-col items-start">
+                  <span className="text-lg font-bold text-emerald-600 inline-flex items-center mb-2">
+                    R$ <span className="ml-1">{product.price.replace('R$ ', '')}</span>
+                  </span>
+                  <button
+                    onClick={() => handleViewMore(product)}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors w-full"
+                  >
+                    Ver Mais
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {selectedProduct && !checkout && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-[500px]">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-semibold text-gray-800">{selectedProduct.name}</h3>
+                <button onClick={closeModal} className="text-gray-500 hover:text-gray-700">
+                  <span className="text-2xl">×</span>
+                </button>
+              </div>
+              <img
+                src={selectedProduct.image}
+                alt={selectedProduct.name}
+                className="w-full h-48 object-cover mb-4"
+              />
+              <div className="text-gray-600 mb-2">
+                <span className="font-bold text-emerald-600 inline-flex items-center">
+                  R$ <span className="ml-1">{selectedProduct.price.replace('R$ ', '')}</span>
+                </span>
+                {selectedProduct.originalPrice && (
+                  <span className="ml-2 text-gray-500 line-through">{selectedProduct.originalPrice}</span>
+                )}
+                {selectedProduct.discount && (
+                  <span className="ml-2 text-emerald-600">{selectedProduct.discount}</span>
+                )}
+              </div>
+              <div className="mb-2">
+                <label className="block text-sm font-medium text-gray-700">Escolha uma opção</label>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {selectedProduct.flavors.map((flavor) => (
+                    <button
+                      key={flavor}
+                      onClick={() => setSelectedFlavor(flavor)}
+                      className={`px-2 py-1 rounded-md text-sm ${
+                        selectedFlavor === flavor
+                          ? 'bg-emerald-500 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300'
+                      }`}
+                    >
+                      {flavor}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-xs text-gray-500">{getSelectionStatus()} OBRIGATÓRIO</span>
+              </div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handleQuantityChange(-1)}
+                    className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                  >
+                    -
+                  </button>
+                  <span className="px-3 py-1 bg-gray-100">{quantity}</span>
+                  <button
+                    onClick={() => handleQuantityChange(1)}
+                    className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                  >
+                    +
+                  </button>
+                </div>
+                <button
+                  onClick={handleAddToCart}
+                  className="bg-black text-white px-4 py-2 rounded-lg font-medium"
+                >
+                  Adicionar {getTotalPrice()}
+                </button>
+              </div>
             </div>
           </div>
+        )}
+
+        {checkout && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-lg p-6 w-[500px]">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="font-semibold text-gray-800">Checkout</h3>
+        <button onClick={closeCheckout} className="text-gray-500 hover:text-gray-700">
+          <span className="text-2xl">×</span>
+        </button>
+      </div>
+      {!qrCodeData && paymentStatus !== 'Seu pedido foi realizado com sucesso!' ? (
+        <form onSubmit={handleCheckoutSubmit}>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700">CEP</label>
+            <input
+              type="text"
+              name="cep"
+              value={address.cep}
+              onChange={handleCepChange}
+              className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+              placeholder="Digite o CEP (ex: 12345-678)"
+              maxLength={9}
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700">Estado</label>
+            <input
+              type="text"
+              name="estado"
+              value={address.estado}
+              onChange={handleAddressChange}
+              className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700">Cidade</label>
+            <input
+              type="text"
+              name="cidade"
+              value={address.cidade}
+              onChange={handleAddressChange}
+              className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700">Bairro</label>
+            <input
+              type="text"
+              name="bairro"
+              value={address.bairro}
+              onChange={handleAddressChange}
+              className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700">Rua</label>
+            <input
+              type="text"
+              name="rua"
+              value={address.rua}
+              onChange={handleAddressChange}
+              className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700">Número</label>
+            <input
+              type="text"
+              name="numero"
+              value={address.numero}
+              onChange={handleAddressChange}
+              className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700">Complemento (opcional)</label>
+            <input
+              type="text"
+              name="complemento"
+              value={address.complemento}
+              onChange={handleAddressChange}
+              className="mt-1 block w-full border-gray-300 rounded-none shadow-sm pl-3"
+            />
+          </div>
+          {/* Warning Message for Payments at R$150,00 or More */}
+          {parseFloat(getCartTotal().replace(',', '.')) >= 150 && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+              <p className="font-medium">Atenção!</p>
+              <p>
+                Pagamentos de R$150,00 ou mais não são permitidos e resultarão em erro. Por favor, divida sua compra em pedidos separados para prosseguir.
+              </p>
+            </div>
+          )}
+          <button
+            type="submit"
+            className="w-full bg-emerald-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            disabled={parseFloat(getCartTotal().replace(',', '.')) >= 150}
+          >
+            Pagar com PIX
+          </button>
+        </form>
+      ) : (
+        <div className="text-center">
+          <h4 className="font-semibold text-gray-800 mb-4">Pague com PIX</h4>
+          {qrCodeData && (
+            <>
+              <img src={qrCodeData.qr_code_base64} alt="QR Code PIX" className="mx-auto mb-4 max-w-[200px]" />
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 break-all">{qrCodeData.qr_code}</p>
+                <button
+                  onClick={copyToClipboard}
+                  className="mt-2 bg-emerald-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-600"
+                >
+                  Copiar Código
+                </button>
+              </div>
+            </>
+          )}
+          {paymentStatus && <p className="text-sm text-gray-600">{paymentStatus}</p>}
         </div>
       )}
+      <div className="mt-4">
+        <h4 className="font-semibold text-gray-800">Carrinho</h4>
+        <ul>
+          {cart.map((item, index) => {
+            const isDiscounted = discountedProduct && item.product === discountedProduct.name;
+            const originalProduct = products.find((p) => p.name === item.product);
+            const originalPrice = originalProduct
+              ? parseFloat(originalProduct.price.replace('R$ ', '').replace(',', '.'))
+              : 0;
+            const displayPrice = isDiscounted
+              ? parseFloat(item.price.replace('R$ ', '').replace(',', '.'))
+              : originalPrice;
+
+            return (
+              <li key={index} className="text-gray-600 flex justify-between items-center">
+                {item.product} - {item.flavor} x{item.quantity}
+                {(item.discount || item.promotion) && (
+                  <span className="ml-2 text-emerald-600">
+                    ({item.discount || item.promotion})
+                  </span>
+                )}
+                <span className="ml-2 text-right inline-flex items-center">
+                  R$ <span className="ml-1">{item.price.replace('R$ ', '')}</span>
+                  {!isDiscounted && originalPrice > 0 && item.discount && (
+                    <span className="ml-2 text-gray-500 line-through">
+                      R$ {(originalPrice * item.quantity).toFixed(2).replace('.', ',')}
+                    </span>
+                  )}
+                </span>
+                <button
+                  onClick={() => removeFromCart(index)}
+                  className="ml-2 text-red-500 hover:text-red-700"
+                >
+                  ×
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        {cart.length > 0 && (
+          <div className="mt-2 text-gray-800 font-semibold">
+            <span className="inline-flex items-center">
+              R$ <span className="ml-1">{getCartTotal()}</span>
+            </span>
+          </div>
+        )}
+        {errorMessage && <p className="text-red-500 mt-2">{errorMessage}</p>}
+        <p className="text-sm text-gray-500 mt-4">
+          A PUSHIN PAY atua exclusivamente como processadora de pagamentos e não possui qualquer
+          responsabilidade pela entrega, suporte, conteúdo, qualidade ou cumprimento das obrigações
+          relacionadas aos produtos ou serviços oferecidos pelo vendedor.
+        </p>
+      </div>
     </div>
-    <style>
-      {`
-        @media (max-width: 640px) {
-          .inline-flex.items-center span {
-            display: inline-flex !important;
-            gap: 0;
+  </div>
+)}
+      </div>
+      <style>
+        {`
+          @media (max-width: 640px) {
+            .inline-flex.items-center {
+              display: inline-flex !important;
+              gap: 0;
+            }
+            .inline-flex.items-center span.ml-1 {
+              margin-left: 0.25rem !important;
+            }
+            .flex-col.items-start {
+              flex-direction: column !important;
+              align-items: flex-start !important;
+            }
+            .flex-col.items-start .mb-2 {
+              margin-bottom: 0.5rem !important;
+            }
+            .flex-col.items-start button {
+              width: 100% !important;
+            }
           }
-          .inline-flex.items-center span.ml-1 {
-            margin-left: 0.25rem !important;
-          }
-          .flex-col.items-start {
-            flex-direction: column !important;
-            align-items: flex-start !important;
-          }
-          .flex-col.items-start .mb-2 {
-            margin-bottom: 0.5rem !important;
-          }
-          .flex-col.items-start button {
-            width: 100% !important;
-          }
-          .promotion-carousel .slick-dots {
-            display: block !important;
-          }
-        }
-        @media (min-width: 640px) {
-          .promotion-carousel .slick-dots {
-            display: none !important; /* Hide dots on desktop */
-          }
-          .promotion-carousel .slick-slide {
-            padding: 0 8px; /* Adjust spacing between slides */
-          }
-          .promotion-carousel .slick-list {
-            margin: 0 -8px; /* Offset padding for balanced appearance */
-          }
-        }
-        .slick-dots li button:before {
-          color: #10b981 !important;
-        }
-        .slick-dots li.slick-active button:before {
-          color: #059669 !important;
-        }
-      `}
-    </style>
-  </section>
-);
+        `}
+      </style>
+    </section>
+  );
 };
 
 export default Products;

@@ -62,6 +62,11 @@ module.exports = {
         },
       },
       keyframes: {
+        pulse: {
+          '0%': { transform: 'scale(1)' },
+          '50%': { transform: 'scale(1.1)' },
+          '100%': { transform: 'scale(1)' },
+        },
         fadeIn: {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
@@ -87,6 +92,7 @@ module.exports = {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         'fade-in': 'fadeIn 0.5s ease-in-out',
+        'pulse-badge': 'pulse 2s infinite',
       },
       container: {
         center: true,

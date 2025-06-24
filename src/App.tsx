@@ -25,6 +25,15 @@ interface Product {
   discount?: string;
 }
 
+interface CartItem {
+  product: string;
+  flavor: string;
+  quantity: number;
+  price: string;
+  discount?: string;
+  promotion?: string;
+}
+
 export interface Promotion {
   id: number;
   title: string;
@@ -41,7 +50,9 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(true);
   const [modalStep, setModalStep] = useState<'state' | 'city' | 'loading' | 'result'>('state');
   const [storeDistance, setStoreDistance] = useState<number | null>(null);
-  const [promotions, setPromotions] = useState<Promotion[]>([]); // State for promotions
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [checkout, setCheckout] = useState<boolean>(false);
 
   // Mock products (should match the ones in Products.tsx)
   const products = [
@@ -288,7 +299,7 @@ function App() {
   const handleStateSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedState = e.target.value as StateName;
     setUserState(selectedState);
-    setUserCity(null); // Reset city when state changes
+    setUserCity(null);
   };
 
   const handleStateNext = () => {
@@ -321,6 +332,33 @@ function App() {
           discount: '20% OFF',
         });
 
+        // Generate promotions based on selected city
+        const randomProducts = products.sort(() => 0.5 - Math.random()).slice(0, 3);
+        const newPromotions = [
+          {
+            id: 1,
+            title: `Promoções de ${userCity || 'sua cidade'}`,
+            description: `Ganhe 20% de desconto no ${randomProducts[0].name}!`,
+            product: randomProducts[0],
+            type: 'discount',
+          },
+          {
+            id: 2,
+            title: `Promoções de ${userCity || 'sua cidade'}`,
+            description: `Compre 1 ${randomProducts[1].name}, leve 2!`,
+            product: randomProducts[1],
+            type: 'buy1get2',
+          },
+          {
+            id: 3,
+            title: `Promoções de ${userCity || 'sua cidade'}`,
+            description: `Compre 10 ${randomProducts[2].name}, leve 20!`,
+            product: randomProducts[2],
+            type: 'buy10get20',
+          },
+        ];
+        setPromotions(newPromotions);
+
         setModalStep('result');
       }, 3000);
     }
@@ -335,6 +373,66 @@ function App() {
     return cidades_por_estados
       .filter(([code]: [string, string]) => code === stateCode)
       .map(([, city]: [string, string]) => city);
+  };
+
+  const handleAddPromotionToCart = (promo: Promotion) => {
+  const product = promo.product;
+  let finalQuantity = 1; // Default quantity
+  let finalPrice = product.price;
+  let discount: string | undefined;
+  let promotion: string | undefined;
+
+  if (promo.type === 'discount') {
+    const originalPrice = parseFloat(product.price.replace('R$ ', '').replace(',', '.'));
+    const discountAmount = originalPrice * 0.20;
+    const discountedPrice = (originalPrice - discountAmount).toFixed(2).replace('.', ',');
+    finalPrice = `R$ ${discountedPrice}`;
+    discount = '20% OFF';
+  } else if (promo.type === 'buy1get2') {
+    finalQuantity = 2;
+    promotion = 'Compre 1, Leve 2';
+  } else if (promo.type === 'buy10get20') {
+    // Set quantity to 10 for pricing, user gets 20 items
+    finalQuantity = 10;
+    const originalPrice = parseFloat(product.price.replace('R$ ', '').replace(',', '.'));
+    const promoPrice = (originalPrice * 10).toFixed(2).replace('.', ',');
+    finalPrice = `R$ ${promoPrice}`;
+    promotion = 'Compre 10, Leve 20';
+  }
+
+  const item: CartItem = {
+    product: product.name,
+    flavor: product.flavors[0] || 'Sem sabor',
+    quantity: promo.type === 'buy10get20' ? 20 : finalQuantity, // User gets 20 for buy10get20
+    price: finalPrice,
+    discount,
+    promotion,
+  };
+
+  setCart([...cart, item]);
+  setCheckout(true);
+};
+
+  // Carousel settings
+  const sliderSettings = {
+    dots: true,
+    infinite: true,
+    speed: 500,
+    slidesToShow: 3,
+    slidesToScroll: 1,
+    arrows: false,
+    responsive: [
+      {
+        breakpoint: 640,
+        settings: {
+          slidesToShow: 1,
+          slidesToScroll: 1,
+          autoplay: true,
+          autoplaySpeed: 3000,
+          dots: true,
+        },
+      },
+    ],
   };
 
   return (
@@ -445,12 +543,52 @@ function App() {
       <div className={isModalOpen ? 'opacity-75 pointer-events-none' : ''}>
         <Hero />
         <main className="container mx-auto px-4 py-8">
+          {/* Promotions Section */}
+          {promotions.length > 0 && (
+  <div className="mb-12 relative">
+    <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4 text-center bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-2 px-4 rounded-lg shadow-lg transform transition-transform duration-300 hover:scale-105">
+      {promotions[0].title}
+    </h2>
+    <Slider {...sliderSettings}>
+      {promotions.map((promo) => (
+        <div key={promo.id} className="px-2">
+          <div className="bg-white rounded-lg shadow-md overflow-hidden h-full relative border-2 border-emerald-500">
+            {/* Pulsing Promotion Badge */}
+            <span className="absolute top-0 right-0 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-bl-lg animate-pulse-badge">
+              Promoção
+            </span>
+            <img
+              src={promo.product.image}
+              alt={promo.title}
+              className="w-full h-48 object-cover"
+            />
+            <div className="p-4">
+              <h4 className="text-lg font-semibold text-gray-800 mb-2">{promo.title}</h4>
+              <p className="text-gray-600 text-sm mb-4">{promo.description}</p>
+              <button
+                onClick={() => handleAddPromotionToCart(promo)}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors w-full transform hover:scale-105"
+              >
+                Aproveitar Promoção
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+    </Slider>
+  </div>
+)}
 
+          {/* Categories and Products */}
           {!selectedCategory && <Categories onCategorySelect={setSelectedCategory} />}
           <Products
             selectedCategory={selectedCategory}
             onBack={() => setSelectedCategory(null)}
             discountedProduct={discountedProduct}
+            cart={cart}
+            setCart={setCart}
+            checkout={checkout}
+            setCheckout={setCheckout}
           />
         </main>
         <Contact />
