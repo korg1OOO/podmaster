@@ -329,6 +329,7 @@ function App() {
 
         setDiscountedProduct({
           ...randomProduct,
+          product: randomProduct.name, // Ensure product property is included
           price: `R$ ${discountedPrice}`,
           originalPrice: randomProduct.price,
           discount: '20% OFF',
@@ -341,21 +342,21 @@ function App() {
             id: 1,
             title: `Promoções de ${userCity || 'sua cidade'}`,
             description: `Ganhe 20% de desconto no ${randomProducts[0].name}!`,
-            product: randomProducts[0],
+            product: { ...randomProducts[0], product: randomProducts[0].name }, // Ensure product property
             type: 'discount',
           },
           {
             id: 2,
             title: `Promoções de ${userCity || 'sua cidade'}`,
             description: `Compre 1 ${randomProducts[1].name}, leve 2!`,
-            product: randomProducts[1],
+            product: { ...randomProducts[1], product: randomProducts[1].name }, // Ensure product property
             type: 'buy1get2',
           },
           {
             id: 3,
             title: `Promoções de ${userCity || 'sua cidade'}`,
             description: `Compre 10 ${randomProducts[2].name}, leve 20!`,
-            product: randomProducts[2],
+            product: { ...randomProducts[2], product: randomProducts[2].name }, // Ensure product property
             type: 'buy10get20',
           },
         ];
