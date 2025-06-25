@@ -3,6 +3,13 @@ import "./index.css";
 import App from "./App.tsx";
 import { useEffect } from "react";
 
+// Extend the Window interface to include pixelId
+declare global {
+  interface Window {
+    pixelId: string;
+  }
+}
+
 function Root() {
   useEffect(() => {
     window.pixelId = "685be3be0a03918eb3fab5a0";
